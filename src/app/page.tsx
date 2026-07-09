@@ -1,8 +1,7 @@
-import { getSurveys, createSurvey, logoutAdmin } from './actions';
+import { getSurveys, createSurvey } from './actions';
 import DeleteSurveyButton from './DeleteSurveyButton';
 import Link from 'next/link';
-import { Plus, Eye, CheckSquare, BarChart, LogOut } from 'lucide-react';
-import { redirect } from 'next/navigation';
+import { Plus, Eye, CheckSquare, BarChart, Pencil } from 'lucide-react';
 
 export const dynamic = 'force-dynamic'; // Wyłącz caching żeby zawsze widzieć nowe ankiety
 
@@ -12,20 +11,7 @@ export default async function DashboardPage() {
   return (
     <div className="container animate-fade-in">
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h1 className="h1" style={{ margin: 0 }}>Moje Ankiety</h1>
-          {process.env.ADMIN_PASSWORD && (
-            <form action={async () => {
-              'use server';
-              await logoutAdmin();
-              redirect('/login');
-            }}>
-              <button type="submit" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem', height: 'fit-content' }} title="Wyloguj administratora">
-                <LogOut size={14} /> Wyloguj
-              </button>
-            </form>
-          )}
-        </div>
+        <h1 className="h1" style={{ margin: 0 }}>Moje Ankiety</h1>
         
         <form action={createSurvey} style={{ display: 'flex', gap: '0.5rem' }}>
           <input 
@@ -69,14 +55,14 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <Link href={`/editor/${survey.id}?tab=results`} className="btn btn-secondary">
-                  Wyniki
+                <Link href={`/editor/${survey.id}?tab=results`} className="btn btn-secondary" style={{ display: 'flex', gap: '0.35rem' }}>
+                  <BarChart size={16} /> Wyniki
                 </Link>
-                <Link href={`/s/${survey.id}`} className="btn btn-secondary" target="_blank">
-                  Podgląd
+                <Link href={`/s/${survey.id}`} className="btn btn-secondary" target="_blank" style={{ display: 'flex', gap: '0.35rem' }}>
+                  <Eye size={16} /> Podgląd
                 </Link>
-                <Link href={`/editor/${survey.id}`} className="btn btn-primary">
-                  Edytuj
+                <Link href={`/editor/${survey.id}`} className="btn btn-primary" style={{ display: 'flex', gap: '0.35rem' }}>
+                  <Pencil size={16} /> Edytuj
                 </Link>
                 <DeleteSurveyButton surveyId={survey.id} surveyTitle={survey.title} />
               </div>

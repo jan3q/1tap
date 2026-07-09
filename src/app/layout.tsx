@@ -1,9 +1,19 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { LogOut } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: '1tap - Kreator Ankiet',
   description: 'Prosty i intuicyjny kreator ankiet',
+}
+
+async function logoutAction() {
+  'use server'
+  const cookieStore = await cookies()
+  cookieStore.delete('auth_token')
+  redirect('/login')
 }
 
 export default function RootLayout({
@@ -19,8 +29,24 @@ export default function RootLayout({
             <a href="/" style={{ fontWeight: 700, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>
               1tap.
             </a>
-            <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              <span>v1.0.0</span>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>v1.0.0</span>
+              <form action={logoutAction}>
+                <button type="submit" style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  fontSize: '0.85rem',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: 'var(--radius-sm)',
+                }} title="Wyloguj">
+                  <LogOut size={16} /> Wyloguj
+                </button>
+              </form>
             </div>
           </div>
         </nav>

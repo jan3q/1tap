@@ -84,6 +84,7 @@ export default function EditorClient({
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
   const [showConnections, setShowConnections] = useState(false);
   const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
+  const [focusedQuestionId, setFocusedQuestionId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -92,14 +93,14 @@ export default function EditorClient({
 
   const CONNECTION_COLORS = useMemo(() => [
     '#3b82f6', // niebieski
-    '#eab308', // żółty
-    '#a855f7', // fioletowy
-    '#14b8a6', // turkusowy
-    '#1e3a5f', // granatowy
     '#f97316', // pomarańczowy
+    '#a855f7', // fioletowy
+    '#eab308', // żółty
+    '#1e3a5f', // granatowy
+    '#ef4444', // czerwony
+    '#14b8a6', // turkusowy
     '#1a1a1a', // czarny
     '#22c55e', // zielony
-    '#ef4444', // czerwony
   ], []);
 
   const questionGroups = useMemo(() => {
@@ -342,8 +343,19 @@ export default function EditorClient({
                   border: 'none',
                   backgroundColor: `${firstColor}0D`,
                   boxShadow: boxShadowStyle,
-                } : {})
-              }}>
+                } : {}),
+                ...(focusedQuestionId === q.id ? {
+                  border: isConnected ? 'none' : '2px solid #333',
+                  boxShadow: isConnected 
+                    ? `${boxShadowStyle}, 0 0 0 1px #333 inset` 
+                    : '0 0 0 2px #333',
+                  backgroundColor: isConnected ? `${firstColor}0D` : '#f0f0f3',
+                } : {}),
+              }}
+              onClick={() => setFocusedQuestionId(q.id)}
+              tabIndex={0}
+              onFocus={() => setFocusedQuestionId(q.id)}
+              >
                 {q.required && <span style={{ position: 'absolute', top: '0.25rem', left: '0.5rem', color: '#ef4444', fontWeight: 'bold', fontSize: '1.25rem', lineHeight: 1 }} title="Pole wymagane">*</span>}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', color: 'var(--text-muted)' }}>
                   <button onClick={() => moveUp(i)} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>

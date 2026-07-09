@@ -36,7 +36,7 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 10000,
             padding: '1rem',
           }}
           onClick={(e) => {
