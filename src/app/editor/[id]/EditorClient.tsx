@@ -91,45 +91,38 @@ export default function EditorClient({
   }, []);
 
   const CONNECTION_COLORS = useMemo(() => [
-    '#3b82f6',
-    '#eab308',
-    '#22c55e',
-    '#ef4444',
-    '#a855f7',
-    '#f97316',
-    '#14b8a6',
-    '#ec4899',
-    '#6366f1',
-    '#84cc16',
+    '#3b82f6', // niebieski
+    '#eab308', // żółty
+    '#a855f7', // fioletowy
+    '#14b8a6', // turkusowy
+    '#1e3a5f', // granatowy
+    '#f97316', // pomarańczowy
+    '#1a1a1a', // czarny
+    '#22c55e', // zielony
+    '#ef4444', // czerwony
   ], []);
 
-  const connectionGroups = useMemo(() => {
-    if (!showConnections) return new Map<string, number>();
-    const adj = new Map<string, Set<string>>();
-    questions.forEach(q => { if (!adj.has(q.id)) adj.set(q.id, new Set()); });
+  const questionGroups = useMemo(() => {
+    if (!showConnections) return new Map<string, number[]>();
+    const groups = new Map<string, number[]>();
+    let groupIdx = 0;
+
     questions.forEach(q => {
-      if (q.logic?.conditions) {
+      if (q.logic?.conditions && q.logic.conditions.length > 0) {
+        const allIds = new Set<string>();
+        allIds.add(q.id);
         q.logic.conditions.forEach(cond => {
-          if (cond.fieldId) {
-            adj.get(q.id)!.add(cond.fieldId);
-            if (!adj.has(cond.fieldId)) adj.set(cond.fieldId, new Set());
-            adj.get(cond.fieldId)!.add(q.id);
-          }
+          if (cond.fieldId) allIds.add(cond.fieldId);
         });
+
+        allIds.forEach(id => {
+          if (!groups.has(id)) groups.set(id, []);
+          groups.get(id)!.push(groupIdx);
+        });
+        groupIdx++;
       }
     });
-    const visited = new Set<string>();
-    const groups = new Map<string, number>();
-    let groupIdx = 0;
-    const dfs = (nodeId: string) => {
-      if (visited.has(nodeId)) return;
-      visited.add(nodeId);
-      groups.set(nodeId, groupIdx);
-      adj.get(nodeId)?.forEach(n => dfs(n));
-    };
-    adj.forEach((_, nodeId) => {
-      if (!visited.has(nodeId)) { dfs(nodeId); groupIdx++; }
-    });
+
     return groups;
   }, [questions, showConnections]);
 
@@ -336,16 +329,19 @@ export default function EditorClient({
             )}
             
             {questions.map((q, i) => {
-              const groupIdx = connectionGroups.get(q.id);
-              const isConnected = groupIdx !== undefined && showConnections;
-              const connColor = isConnected ? CONNECTION_COLORS[groupIdx % CONNECTION_COLORS.length] : undefined;
+              const groups = questionGroups.get(q.id);
+              const isConnected = groups && groups.length > 0 && showConnections;
+              const firstColor = isConnected && groups ? CONNECTION_COLORS[groups[0] % CONNECTION_COLORS.length] : undefined;
+              const boxShadowStyle = isConnected && groups
+                ? groups.map((gIdx, gi) => `0 0 0 ${(gi + 1) * 3}px ${CONNECTION_COLORS[gIdx % CONNECTION_COLORS.length]}`).join(', ')
+                : undefined;
               return (
               <div key={q.id} className="card animate-slide-down" style={{ 
                 display: 'flex', gap: '1rem', position: 'relative',
                 ...(isConnected ? {
-                  border: `3px solid ${connColor}`,
-                  backgroundColor: `${connColor}0D`,
-                  boxShadow: `0 0 8px ${connColor}20`,
+                  border: 'none',
+                  backgroundColor: `${firstColor}0D`,
+                  boxShadow: boxShadowStyle,
                 } : {})
               }}>
                 {q.required && <span style={{ position: 'absolute', top: '0.25rem', left: '0.5rem', color: '#ef4444', fontWeight: 'bold', fontSize: '1.25rem', lineHeight: 1 }} title="Pole wymagane">*</span>}
