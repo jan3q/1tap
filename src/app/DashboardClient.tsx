@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Eye, BarChart, Pencil, Search, X } from 'lucide-react';
 import DeleteSurveyButton from './DeleteSurveyButton';
-import { createSurvey } from './actions';
 import { Survey } from '@/types';
 
 function normalize(text: string): string {
@@ -57,21 +56,35 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    setCreateError(null);
     setIsCreating(true);
     try {
-      const result = await createSurvey(newTitle.trim(), newDescription.trim() || undefined);
-      if (result && 'id' in result && result.id) {
+      const res = await fetch('/api/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle.trim(), description: newDescription.trim() }),
+      });
+let data: { success?: boolean; id?: string; error?: string } | null = null;
+        try { data = await res.json(); } catch { /* nie-JSON */ }
+
+      if (res.ok && data?.success && data.id) {
         setShowCreateModal(false);
         setNewTitle('');
         setNewDescription('');
-        router.push(`/editor/${result.id}`);
+        router.push(`/editor/${data.id}`);
+        return;
       }
+
+      const msg = (data && data.error) || `Nie udało się utworzyć ankiety (HTTP ${res.status}).`;
+      setCreateError(msg);
     } catch (err) {
       console.error('Błąd tworzenia ankiety:', err);
+      setCreateError('Wystąpił błąd podczas tworzenia ankiety. Spróbuj ponownie.');
     } finally {
       setIsCreating(false);
     }
@@ -96,7 +109,7 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
 
         <button
           type="button"
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => { setCreateError(null); setShowCreateModal(true); }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -250,6 +263,20 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
           >
             <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Nowa ankieta</h3>
 
+            {createError && (
+              <div style={{
+                backgroundColor: '#fef2f2',
+                border: '1px solid #ef4444',
+                color: '#b91c1c',
+                padding: '0.75rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9rem',
+                marginBottom: '1rem',
+              }}>
+                {createError}
+              </div>
+            )}
+
             <form onSubmit={handleCreate}>
               <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.9rem' }}>
                 Nazwa ankiety <span style={{ color: '#ef4444' }}>*</span>
@@ -284,6 +311,7 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
                     setShowCreateModal(false);
                     setNewTitle('');
                     setNewDescription('');
+                    setCreateError(null);
                   }}
                   className="btn btn-secondary"
                 >

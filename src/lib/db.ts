@@ -9,7 +9,16 @@ const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
-const db = new Database(dbPath);
+
+// Używamy globalnego singletonu, aby uniknąć wielokrotnego tworzenia i zamykania
+// połączenia better-sqlite3 podczas hot-reload'u w trybie deweloperskim (Next.js),
+// co powodowało błąd "Connection closed." przy server actions.
+const globalForDb = globalThis as unknown as { __db?: Database.Database };
+
+const db = globalForDb.__db ?? new Database(dbPath);
+if (!globalForDb.__db) {
+  globalForDb.__db = db;
+}
 
 // Inicjalizacja schematu
 const initDb = () => {
@@ -22,6 +31,7 @@ const initDb = () => {
       submissions INTEGER DEFAULT 0,
       redirect_url TEXT,
       webhook_url TEXT,
+      description TEXT DEFAULT '',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -33,6 +43,12 @@ const initDb = () => {
       FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
     );
   `);
+
+  // Migracja: dodaj kolumnę description, jeśli brakuje (dla istniejących baz)
+  const cols = db.prepare("PRAGMA table_info(surveys)").all() as { name: string }[];
+  if (!cols.some(c => c.name === 'description')) {
+    db.exec("ALTER TABLE surveys ADD COLUMN description TEXT DEFAULT ''");
+  }
 };
 
 initDb();
