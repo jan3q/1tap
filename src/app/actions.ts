@@ -144,6 +144,11 @@ export async function getSurveyResponses(surveyId: string): Promise<SurveyRespon
   return db.prepare('SELECT * FROM survey_responses WHERE survey_id = ? ORDER BY created_at DESC').all(surveyId) as SurveyResponse[];
 }
 
+export async function deleteSurvey(id: string) {
+  db.prepare('DELETE FROM surveys WHERE id = ?').run(id);
+  revalidatePath('/');
+}
+
 export async function loginAdmin(password: string) {
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword) {

@@ -89,6 +89,49 @@ export default function EditorClient({
     setMounted(true);
   }, []);
 
+  const CONNECTION_COLORS = useMemo(() => [
+    '#3b82f6',
+    '#eab308',
+    '#22c55e',
+    '#ef4444',
+    '#a855f7',
+    '#f97316',
+    '#14b8a6',
+    '#ec4899',
+    '#6366f1',
+    '#84cc16',
+  ], []);
+
+  const connectionGroups = useMemo(() => {
+    if (!showConnections) return new Map<string, number>();
+    const adj = new Map<string, Set<string>>();
+    questions.forEach(q => { if (!adj.has(q.id)) adj.set(q.id, new Set()); });
+    questions.forEach(q => {
+      if (q.logic?.conditions) {
+        q.logic.conditions.forEach(cond => {
+          if (cond.fieldId) {
+            adj.get(q.id)!.add(cond.fieldId);
+            if (!adj.has(cond.fieldId)) adj.set(cond.fieldId, new Set());
+            adj.get(cond.fieldId)!.add(q.id);
+          }
+        });
+      }
+    });
+    const visited = new Set<string>();
+    const groups = new Map<string, number>();
+    let groupIdx = 0;
+    const dfs = (nodeId: string) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      groups.set(nodeId, groupIdx);
+      adj.get(nodeId)?.forEach(n => dfs(n));
+    };
+    adj.forEach((_, nodeId) => {
+      if (!visited.has(nodeId)) { dfs(nodeId); groupIdx++; }
+    });
+    return groups;
+  }, [questions, showConnections]);
+
   if (!mounted) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -158,49 +201,6 @@ export default function EditorClient({
   const cleanConfigUrl = configuredAppUrl ? configuredAppUrl.replace(/\/$/, '') : '';
   const cleanActualUrl = actualAppUrl ? actualAppUrl.replace(/\/$/, '') : '';
   const hasDomainMismatch = cleanConfigUrl && cleanConfigUrl !== cleanActualUrl;
-
-  const CONNECTION_COLORS = [
-    '#3b82f6', // niebieski
-    '#eab308', // żółty
-    '#22c55e', // zielony
-    '#ef4444', // czerwony
-    '#a855f7', // fioletowy
-    '#f97316', // pomarańczowy
-    '#14b8a6', // turkusowy
-    '#ec4899', // różowy
-    '#6366f1', // indygo
-    '#84cc16', // limonkowy
-  ];
-
-  const connectionGroups = useMemo(() => {
-    if (!showConnections) return new Map<string, number>();
-    const adj = new Map<string, Set<string>>();
-    questions.forEach(q => { if (!adj.has(q.id)) adj.set(q.id, new Set()); });
-    questions.forEach(q => {
-      if (q.logic?.conditions) {
-        q.logic.conditions.forEach(cond => {
-          if (cond.fieldId) {
-            adj.get(q.id)!.add(cond.fieldId);
-            if (!adj.has(cond.fieldId)) adj.set(cond.fieldId, new Set());
-            adj.get(cond.fieldId)!.add(q.id);
-          }
-        });
-      }
-    });
-    const visited = new Set<string>();
-    const groups = new Map<string, number>();
-    let groupIdx = 0;
-    const dfs = (nodeId: string) => {
-      if (visited.has(nodeId)) return;
-      visited.add(nodeId);
-      groups.set(nodeId, groupIdx);
-      adj.get(nodeId)?.forEach(n => dfs(n));
-    };
-    adj.forEach((_, nodeId) => {
-      if (!visited.has(nodeId)) { dfs(nodeId); groupIdx++; }
-    });
-    return groups;
-  }, [questions, showConnections]);
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '6rem' }}>
