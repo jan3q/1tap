@@ -1,0 +1,45 @@
+export type QuestionType = 'short-text' | 'long-text' | 'number' | 'checkbox' | 'radio' | 'scale' | 'header';
+
+export interface Question {
+  id: string;
+  type: QuestionType;
+  title: string;
+  required: boolean;
+  options?: string[]; // np. "Opcja 1", "Opcja 2" dla radio/checkbox
+  scaleMin?: number;
+  scaleMax?: number;
+  description?: string; // objaśnienie pod pytaniem lub podtytuł dla nagłówka
+  logic?: {
+    strategy: 'all' | 'any';
+    conditions: {
+      id: string;
+      fieldId: string;
+      operator: 'empty' | 'not-empty' | 'equals' | 'not-equals' | 'contains' | 'not-contains' | 'greater' | 'less';
+      value?: string;
+    }[];
+  };
+}
+
+export interface SurveySchema {
+  header?: string;
+  description?: string;
+  questions: Question[];
+}
+
+export interface Survey {
+  id: string;
+  title: string;
+  schema_json: string;
+  views: number;
+  submissions: number;
+  redirect_url: string | null;
+  webhook_url: string | null;
+  created_at: string;
+}
+
+export interface SurveyResponse {
+  id: string;
+  survey_id: string;
+  answers_json: string;
+  created_at: string;
+}
