@@ -1,8 +1,14 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
+import fs from 'fs';
+
 // Połącz do lokalnej bazy danych (w głównym folderze aplikacji jako dev.db)
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'dev.db');
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 const db = new Database(dbPath);
 
 // Inicjalizacja schematu
