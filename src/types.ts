@@ -6,6 +6,7 @@ export interface Question {
   title: string;
   required: boolean;
   options?: string[]; // np. "Opcja 1", "Opcja 2" dla radio/checkbox
+  customAnswer?: boolean; // pole "własna odpowiedź" dla radio/checkbox
   scaleMin?: number;
   scaleMax?: number;
   description?: string; // objaśnienie pod pytaniem lub podtytuł dla nagłówka

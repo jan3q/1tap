@@ -62,7 +62,7 @@ function LoginForm() {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent'
         }}>
-          FormFlow
+          1Tap
         </h1>
         <p style={{ color: '#a3a3a3', fontSize: '0.9rem', marginTop: '0.5rem' }}>
           Panel zarządzania ankietami

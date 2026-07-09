@@ -101,7 +101,7 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
       padding: 2rem 1rem;
       margin: 0;
     }
-    .formflow-container {
+    .onetap-container {
       max-width: 650px;
       margin: 0 auto;
       background: #ffffff;
@@ -111,7 +111,7 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
       border: 1px solid #e5e7eb;
       box-sizing: border-box;
     }
-    .formflow-btn {
+    .onetap-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -127,10 +127,10 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
       width: 100%;
       box-sizing: border-box;
     }
-    .formflow-btn:hover {
+    .onetap-btn:hover {
       background-color: #222222;
     }
-    .formflow-btn:disabled {
+    .onetap-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
@@ -143,10 +143,10 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
 </head>
 <body>
 
-  <div class="formflow-container" id="formflow-container">
-    <form id="formflow-form" onsubmit="submitFormFlow(event)">
+  <div class="onetap-container" id="onetap-container">
+    <form id="onetap-form" onsubmit="submitOneTap(event)">
       ${fieldsHTML}
-      <button type="submit" class="formflow-btn" id="submit-btn">Wyślij ankietę</button>
+      <button type="submit" class="onetap-btn" id="submit-btn">Wyślij ankietę</button>
     </form>
     
     <div class="success-message" id="success-message">
@@ -265,11 +265,11 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
     function checkAllLogic() {
 ${logicJS}    }
 
-    document.getElementById('formflow-form').addEventListener('change', checkAllLogic);
-    document.getElementById('formflow-form').addEventListener('input', checkAllLogic);
+    document.getElementById('onetap-form').addEventListener('change', checkAllLogic);
+    document.getElementById('onetap-form').addEventListener('input', checkAllLogic);
     checkAllLogic();
 
-    async function submitFormFlow(e) {
+    async function submitOneTap(e) {
       e.preventDefault();
       const form = e.target;
       const btn = document.getElementById('submit-btn');
@@ -307,7 +307,7 @@ ${logicJS}    }
           if (resData.redirectUrl) {
             window.location.href = resData.redirectUrl;
           } else {
-            document.getElementById('formflow-form').style.display = 'none';
+            document.getElementById('onetap-form').style.display = 'none';
             document.getElementById('success-message').style.display = 'block';
           }
         } else {

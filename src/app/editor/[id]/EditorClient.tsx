@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Survey, SurveySchema, Question, QuestionType } from '@/types';
 import { updateSurveySchema } from '@/app/actions';
 import { v4 as uuidv4 } from 'uuid';
@@ -82,6 +82,7 @@ export default function EditorClient({
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
+  const [showConnections, setShowConnections] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -157,6 +158,49 @@ export default function EditorClient({
   const cleanConfigUrl = configuredAppUrl ? configuredAppUrl.replace(/\/$/, '') : '';
   const cleanActualUrl = actualAppUrl ? actualAppUrl.replace(/\/$/, '') : '';
   const hasDomainMismatch = cleanConfigUrl && cleanConfigUrl !== cleanActualUrl;
+
+  const CONNECTION_COLORS = [
+    '#3b82f6', // niebieski
+    '#eab308', // żółty
+    '#22c55e', // zielony
+    '#ef4444', // czerwony
+    '#a855f7', // fioletowy
+    '#f97316', // pomarańczowy
+    '#14b8a6', // turkusowy
+    '#ec4899', // różowy
+    '#6366f1', // indygo
+    '#84cc16', // limonkowy
+  ];
+
+  const connectionGroups = useMemo(() => {
+    if (!showConnections) return new Map<string, number>();
+    const adj = new Map<string, Set<string>>();
+    questions.forEach(q => { if (!adj.has(q.id)) adj.set(q.id, new Set()); });
+    questions.forEach(q => {
+      if (q.logic?.conditions) {
+        q.logic.conditions.forEach(cond => {
+          if (cond.fieldId) {
+            adj.get(q.id)!.add(cond.fieldId);
+            if (!adj.has(cond.fieldId)) adj.set(cond.fieldId, new Set());
+            adj.get(cond.fieldId)!.add(q.id);
+          }
+        });
+      }
+    });
+    const visited = new Set<string>();
+    const groups = new Map<string, number>();
+    let groupIdx = 0;
+    const dfs = (nodeId: string) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      groups.set(nodeId, groupIdx);
+      adj.get(nodeId)?.forEach(n => dfs(n));
+    };
+    adj.forEach((_, nodeId) => {
+      if (!visited.has(nodeId)) { dfs(nodeId); groupIdx++; }
+    });
+    return groups;
+  }, [questions, showConnections]);
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '6rem' }}>
@@ -263,8 +307,19 @@ export default function EditorClient({
               </div>
             )}
             
-            {questions.map((q, i) => (
-              <div key={q.id} className="card animate-slide-down" style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
+            {questions.map((q, i) => {
+              const groupIdx = connectionGroups.get(q.id);
+              const isConnected = groupIdx !== undefined && showConnections;
+              const connColor = isConnected ? CONNECTION_COLORS[groupIdx % CONNECTION_COLORS.length] : undefined;
+              return (
+              <div key={q.id} className="card animate-slide-down" style={{ 
+                display: 'flex', gap: '1rem', position: 'relative',
+                ...(isConnected ? {
+                  border: `3px solid ${connColor}`,
+                  backgroundColor: `${connColor}0D`,
+                  boxShadow: `0 0 8px ${connColor}20`,
+                } : {})
+              }}>
                 {q.required && <span style={{ position: 'absolute', top: '0.25rem', left: '0.5rem', color: '#ef4444', fontWeight: 'bold', fontSize: '1.25rem', lineHeight: 1 }} title="Pole wymagane">*</span>}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', color: 'var(--text-muted)' }}>
                   <button onClick={() => moveUp(i)} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>
@@ -320,8 +375,8 @@ export default function EditorClient({
                       className="input"
                       style={{ width: 'auto' }}
                     >
-                      <option value="short-text">Krótki tekst</option>
-                      <option value="long-text">Długi tekst</option>
+                      <option value="short-text">Krótkie pytanie</option>
+                      <option value="long-text">Długie pytanie</option>
                       <option value="number">Liczba</option>
                       <option value="checkbox">Wielokrotny wybór</option>
                       <option value="radio">Pojedynczy wybór</option>
@@ -369,6 +424,13 @@ export default function EditorClient({
                       }} className="btn btn-secondary" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
                         + Dodaj opcję
                       </button>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', marginTop: '0.75rem', userSelect: 'none' }}>
+                        <Switch 
+                          checked={q.customAnswer || false}
+                          onChange={(val) => updateQuestion(q.id, { customAnswer: val })}
+                        />
+                        Własna odpowiedź
+                      </label>
                     </div>
                   )}
 
@@ -631,20 +693,21 @@ export default function EditorClient({
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="card" style={{ marginTop: '2rem', borderStyle: 'dashed', backgroundColor: '#fcfcfd', textAlign: 'center', padding: '1.5rem' }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', marginTop: 0 }}>Dodaj element do ankiety</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
-              <button onClick={() => addQuestion('header')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
+              <button onClick={() => addQuestion('header')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto', border: '2px solid #000', backgroundColor: '#f0f0f0', fontWeight: 600 }}>
                 <Plus size={16}/> Nagłówek i podtytuł
               </button>
               <button onClick={() => addQuestion('short-text')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
-                <Type size={16}/> Krótki tekst
+                <Type size={16}/> Krótkie pytanie
               </button>
               <button onClick={() => addQuestion('long-text')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
-                <AlignLeft size={16}/> Długi tekst
+                <AlignLeft size={16}/> Długie pytanie
               </button>
               <button onClick={() => addQuestion('number')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
                 <Hash size={16}/> Liczba
@@ -659,6 +722,28 @@ export default function EditorClient({
                 <SlidersHorizontal size={16}/> Skala 1-10
               </button>
             </div>
+          </div>
+
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem 1.25rem',
+            backgroundColor: '#eff6ff',
+            border: '2px solid #3b82f6',
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            boxShadow: '0 4px 14px rgba(59,130,246,0.15)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '1.1rem' }}>🔗</span>
+              <div>
+                <strong style={{ fontSize: '1rem', color: '#1e40af' }}>Pokaż powiązania</strong>
+                <p style={{ fontSize: '0.8rem', color: '#3b82f6', margin: 0 }}>Pola połączone logiką warunkową zostaną podświetlone tym samym kolorem</p>
+              </div>
+            </div>
+            <Switch checked={showConnections} onChange={setShowConnections} />
           </div>
         </>
       ) : activeTab === 'settings' ? (

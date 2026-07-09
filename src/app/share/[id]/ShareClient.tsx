@@ -50,7 +50,7 @@ export default function ShareClient({
     const element = document.createElement("a");
     const file = new Blob([embedCode], {type: 'text/html'});
     element.href = URL.createObjectURL(file);
-    element.download = `formflow-ankieta-${surveyId}.html`;
+    element.download = `1tap-ankieta-${surveyId}.html`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);

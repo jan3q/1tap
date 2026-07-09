@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SurveySchema } from '@/types';
 import { submitSurveyResponse } from '@/app/actions';
 
@@ -20,11 +20,13 @@ export default function SurveyClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     setMounted(true);
     
-    // Sprawdzamy ciasteczko blokujące na kliencie
     const getCookie = (name: string) => {
       const value = `; ${document.cookie}`;
       const parts = value.split(`; ${name}=`);
@@ -39,6 +41,120 @@ export default function SurveyClient({
       setAlreadyCompleted(true);
     }
   }, [surveyId, isPreview]);
+
+  const visibleQuestions = schema.questions.filter(q => {
+    if (q.type === 'header') return true;
+    if (!q.logic || !q.logic.conditions || q.logic.conditions.length === 0) return true;
+    
+    const { strategy, conditions } = q.logic;
+    const evaluateCondition = (cond: any) => {
+      const { fieldId, operator, value } = cond;
+      const answer = answers[fieldId];
+      switch (operator) {
+        case 'empty': return answer === undefined || answer === '' || (Array.isArray(answer) && answer.length === 0);
+        case 'not-empty': return answer !== undefined && answer !== '' && (!Array.isArray(answer) || answer.length > 0);
+        case 'equals':
+          if (Array.isArray(answer)) return answer.some(v => String(v).toLowerCase() === String(value).toLowerCase());
+          return String(answer).toLowerCase() === String(value).toLowerCase();
+        case 'not-equals':
+          if (Array.isArray(answer)) return !answer.some(v => String(v).toLowerCase() === String(value).toLowerCase());
+          return String(answer).toLowerCase() !== String(value).toLowerCase();
+        case 'contains':
+          if (Array.isArray(answer)) return answer.some(v => String(v).toLowerCase().includes(String(value).toLowerCase()));
+          return String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
+        case 'not-contains':
+          if (Array.isArray(answer)) return !answer.some(v => String(v).toLowerCase().includes(String(value).toLowerCase()));
+          return !String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
+        case 'greater': return Number(answer) > Number(value);
+        case 'less': return Number(answer) < Number(value);
+        default: return true;
+      }
+    };
+    if (strategy === 'any') return conditions.some((cond: any) => evaluateCondition(cond));
+    return conditions.every((cond: any) => evaluateCondition(cond));
+  });
+
+  const inputableQuestions = visibleQuestions.filter(q => q.type !== 'header');
+
+  const focusQuestion = (index: number) => {
+    if (index < 0 || index >= inputableQuestions.length) return;
+    setFocusedIndex(index);
+    const el = questionRefs.current[index];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (submitted || isSubmitting) return;
+
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        if (e.target.type === 'text' || e.target.type === 'number' || e.target.tagName === 'TEXTAREA') return;
+      }
+
+      const q = focusedIndex !== null && focusedIndex < inputableQuestions.length 
+        ? inputableQuestions[focusedIndex] : null;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowDown' ? 1 : -1;
+        let next = focusedIndex !== null ? focusedIndex + dir : 0;
+        if (next < 0) next = 0;
+        if (next >= inputableQuestions.length) next = inputableQuestions.length - 1;
+        focusQuestion(next);
+        return;
+      }
+
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (formRef.current) {
+          formRef.current.requestSubmit();
+        }
+        return;
+      }
+
+      const numKey = parseInt(e.key);
+      if (q && !isNaN(numKey) && numKey >= 1 && numKey <= 9) {
+        if (q.type === 'radio' && q.options && numKey <= q.options.length) {
+          e.preventDefault();
+          handleInput(q.id, q.options[numKey - 1]);
+        } else if (q.type === 'checkbox' && q.options && numKey <= q.options.length) {
+          e.preventDefault();
+          const opt = q.options[numKey - 1];
+          const current = answers[q.id] || [];
+          const newVal = current.includes(opt) 
+            ? current.filter((v: string) => v !== opt)
+            : [...current, opt];
+          handleInput(q.id, newVal);
+        } else if (q.type === 'scale') {
+          e.preventDefault();
+          handleInput(q.id, numKey.toString());
+        }
+        return;
+      }
+
+      if (e.key === ' ' && q) {
+        if (q.type === 'checkbox' && q.options && focusedIndex === 0 && focusedIndex !== null) {
+          e.preventDefault();
+          const current = answers[q.id] || [];
+          if (q.options.length > 0) {
+            const firstOpt = q.options[0];
+            const newVal = current.includes(firstOpt)
+              ? current.filter((v: string) => v !== firstOpt)
+              : [...current, firstOpt];
+            handleInput(q.id, newVal);
+          }
+        } else if (q.type === 'radio' && q.options && q.options.length > 0) {
+          e.preventDefault();
+          handleInput(q.id, q.options[0]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedIndex, inputableQuestions, answers, submitted, isSubmitting]);
 
   if (!mounted) {
     return (
@@ -57,64 +173,22 @@ export default function SurveyClient({
     );
   }
 
-  const shouldShowQuestion = (q: any) => {
-    if (!q.logic || !q.logic.conditions || q.logic.conditions.length === 0) return true;
-    
-    const { strategy, conditions } = q.logic;
-
-    const evaluateCondition = (cond: any) => {
-      const { fieldId, operator, value } = cond;
-      const answer = answers[fieldId];
-
-      switch (operator) {
-        case 'empty':
-          return answer === undefined || answer === '' || (Array.isArray(answer) && answer.length === 0);
-        case 'not-empty':
-          return answer !== undefined && answer !== '' && (!Array.isArray(answer) || answer.length > 0);
-        case 'equals':
-          if (Array.isArray(answer)) {
-            return answer.some(v => String(v).toLowerCase() === String(value).toLowerCase());
-          }
-          return String(answer).toLowerCase() === String(value).toLowerCase();
-        case 'not-equals':
-          if (Array.isArray(answer)) {
-            return !answer.some(v => String(v).toLowerCase() === String(value).toLowerCase());
-          }
-          return String(answer).toLowerCase() !== String(value).toLowerCase();
-        case 'contains':
-          if (Array.isArray(answer)) {
-            return answer.some(v => String(v).toLowerCase().includes(String(value).toLowerCase()));
-          }
-          return String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
-        case 'not-contains':
-          if (Array.isArray(answer)) {
-            return !answer.some(v => String(v).toLowerCase().includes(String(value).toLowerCase()));
-          }
-          return !String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
-        case 'greater':
-          return Number(answer) > Number(value);
-        case 'less':
-          return Number(answer) < Number(value);
-        default:
-          return true;
-      }
-    };
-
-    if (strategy === 'any') {
-      return conditions.some((cond: any) => evaluateCondition(cond));
-    } else {
-      return conditions.every((cond: any) => evaluateCondition(cond));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     const visibleAnswers: Record<string, any> = {};
     schema.questions.forEach(q => {
-      if (shouldShowQuestion(q)) {
-        visibleAnswers[q.id] = answers[q.id] || '';
+      const isVisible = visibleQuestions.includes(q);
+      if (isVisible) {
+        const ans = answers[q.id];
+        if (q.customAnswer && (q.type === 'radio' || q.type === 'checkbox')) {
+          const customKey = `${q.id}_custom`;
+          visibleAnswers[q.id] = ans || '';
+          visibleAnswers[customKey] = answers[customKey] || '';
+        } else {
+          visibleAnswers[q.id] = ans || '';
+        }
       }
     });
 
@@ -150,7 +224,6 @@ export default function SurveyClient({
 
   return (
     <div className="animate-fade-in">
-      {/* Nagłówek i opis ankiety ze schematu */}
       {schema.header && (
         <h1 className="h1" style={{ marginBottom: '0.5rem' }} dangerouslySetInnerHTML={{ __html: schema.header }} />
       )}
@@ -158,14 +231,29 @@ export default function SurveyClient({
         <p className="p-muted" style={{ marginBottom: '2rem', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: schema.description }} />
       )}
       
+      <div style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: '#f0f7ff', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#2563eb', border: '1px solid #bfdbfe' }}>
+        <strong>Szybkie wypełnianie:</strong> strzałki ↑↓ nawigacja · spacja zaznacz · 1-9 wybór opcji · Enter wyślij
+      </div>
+
       {schema.questions.length === 0 ? (
         <p style={{ color: 'var(--text-muted)' }}>Ta ankieta jest jeszcze pusta.</p>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <form ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {schema.questions.map((q, idx) => {
-            if (!shouldShowQuestion(q)) return null;
+            const isVisible = visibleQuestions.includes(q);
+            if (!isVisible) return null;
+            const inputIdx = inputableQuestions.indexOf(q);
+            const isFocused = inputIdx !== -1 && inputIdx === focusedIndex;
+
             return (
-              <div key={q.id} className="animate-slide-down" style={{ animationDelay: `${idx * 0.1}s` }}>
+              <div 
+                key={q.id} 
+                className="animate-slide-down" 
+                style={{ 
+                  ...(isFocused ? { outline: '2px solid #2563eb', outlineOffset: '4px', borderRadius: 'var(--radius-md)' } : {}),
+                  animationDelay: `${idx * 0.1}s` 
+                }}
+              >
                 {q.type === 'header' ? (
                   <div style={{ margin: '1.5rem 0 1.5rem 0' }}>
                     <h2 className="h1" style={{ marginBottom: '0.35rem', fontSize: '1.5rem', border: 'none', padding: 0 }} dangerouslySetInnerHTML={{ __html: q.title || 'Nagłówek sekcji' }} />
@@ -174,14 +262,18 @@ export default function SurveyClient({
                     )}
                   </div>
                 ) : (
-                  <>
+                  <div 
+                    ref={(el) => { questionRefs.current[inputIdx] = el; }}
+                    onClick={() => focusQuestion(inputIdx)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <label className="h2" style={{ display: 'block', fontSize: '1.25rem', marginBottom: '0.5rem' }}>
                       <span dangerouslySetInnerHTML={{ __html: q.title || 'Pytanie bez nazwy' }} /> {q.required && <span style={{ color: '#ef4444' }}>*</span>}
                     </label>
                     {q.description && (
                       <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '-0.25rem', marginBottom: '0.75rem' }} dangerouslySetInnerHTML={{ __html: q.description }} />
                     )}
-                  </>
+                  </div>
                 )}
 
               {q.type === 'short-text' && (
@@ -227,27 +319,44 @@ export default function SurveyClient({
                       <input 
                         type="radio" 
                         name={q.id}
-                        required={q.required}
+                        required={q.required && !q.customAnswer}
                         checked={answers[q.id] === opt}
                         onChange={() => handleInput(q.id, opt)}
                         style={{ display: 'none' }}
                       />
-                      <div style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 18,
-                        border: answers[q.id] === opt ? '2px solid var(--text-color)' : '2px solid var(--border-color)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'white',
-                        flexShrink: 0
-                      }}>
-                        {answers[q.id] === opt && <div style={{ width: 8, height: 8, borderRadius: 8, backgroundColor: 'var(--text-color)' }} />}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, minWidth: '1.2rem', textAlign: 'center' }}>{i + 1}</span>
+                        <div style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 18,
+                          border: answers[q.id] === opt ? '2px solid var(--text-color)' : '2px solid var(--border-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: 'white',
+                          flexShrink: 0
+                        }}>
+                          {answers[q.id] === opt && <div style={{ width: 8, height: 8, borderRadius: 8, backgroundColor: 'var(--text-color)' }} />}
+                        </div>
                       </div>
                       <span style={{ fontSize: '1.1rem' }}>{opt}</span>
                     </label>
                   ))}
+                  {q.customAnswer && (
+                    <input 
+                      type="text" 
+                      className="input" 
+                      required={q.required && !answers[q.id]}
+                      value={answers[`${q.id}_custom`] || ''}
+                      onChange={(e) => {
+                        handleInput(`${q.id}_custom`, e.target.value);
+                        handleInput(q.id, e.target.value);
+                      }}
+                      placeholder="Inna odpowiedź..."
+                      style={{ fontSize: '1rem', padding: '0.75rem 1rem' }}
+                    />
+                  )}
                 </div>
               )}
 
@@ -269,23 +378,38 @@ export default function SurveyClient({
                           }}
                           style={{ display: 'none' }}
                         />
-                        <div style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 4,
-                          border: isChecked ? '2px solid var(--text-color)' : '2px solid var(--border-color)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: 'white',
-                          flexShrink: 0
-                        }}>
-                          {isChecked && <div style={{ width: 8, height: 8, backgroundColor: 'var(--text-color)' }} />}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, minWidth: '1.2rem', textAlign: 'center' }}>{i + 1}</span>
+                          <div style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            border: isChecked ? '2px solid var(--text-color)' : '2px solid var(--border-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: 'white',
+                            flexShrink: 0
+                          }}>
+                            {isChecked && <div style={{ width: 8, height: 8, backgroundColor: 'var(--text-color)' }} />}
+                          </div>
                         </div>
                         <span style={{ fontSize: '1.1rem' }}>{opt}</span>
                       </label>
                     );
                   })}
+                  {q.customAnswer && (
+                    <input 
+                      type="text" 
+                      className="input" 
+                      value={answers[`${q.id}_custom`] || ''}
+                      onChange={(e) => {
+                        handleInput(`${q.id}_custom`, e.target.value);
+                      }}
+                      placeholder="Inna odpowiedź..."
+                      style={{ fontSize: '1rem', padding: '0.75rem 1rem' }}
+                    />
+                  )}
                 </div>
               )}
 
@@ -324,14 +448,19 @@ export default function SurveyClient({
             </div>
           );})}
 
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            style={{ padding: '1rem 2rem', fontSize: '1.1rem', marginTop: '1rem', alignSelf: 'flex-start' }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Wysyłanie...' : 'Wyślij odpowiedź'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ padding: '1rem 2rem', fontSize: '1.1rem', marginTop: '1rem', alignSelf: 'flex-start' }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Wysyłanie...' : 'Wyślij odpowiedź'}
+            </button>
+            <span style={{ alignSelf: 'flex-end', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '1rem 0' }}>
+              lub naciśnij Enter ⌨
+            </span>
+          </div>
         </form>
       )}
     </div>
