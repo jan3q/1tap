@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Eye, BarChart, Pencil, Search, X } from 'lucide-react';
 import DeleteSurveyButton from './DeleteSurveyButton';
@@ -49,11 +50,27 @@ function searchScore(survey: Survey, query: string): number {
 }
 
 export default function DashboardClient({ surveys: initialSurveys }: { surveys: Survey[] }) {
+  const router = useRouter();
   const [surveys, setSurveys] = useState(initialSurveys);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    setIsCreating(true);
+    const formData = new FormData();
+    formData.set('title', newTitle);
+    formData.set('description', newDescription);
+    const result = await createSurvey(formData);
+    if (result && 'id' in result && result.id) {
+      router.push(`/editor/${result.id}`);
+    }
+    setIsCreating(false);
+  };
 
   const filteredSurveys = useMemo(() => {
     if (!searchQuery.trim()) return surveys;
@@ -228,13 +245,12 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
           >
             <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Nowa ankieta</h3>
 
-            <form action={createSurvey}>
+            <form onSubmit={handleCreate}>
               <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.9rem' }}>
                 Nazwa ankiety <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
-                name="title"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="np. Badanie satysfakcji klienta"
@@ -248,7 +264,6 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
                 Opis ankiety <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcjonalny)</span>
               </label>
               <textarea
-                name="description"
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 placeholder="Krótki opis co zawiera ankieta..."
@@ -271,10 +286,19 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
-                  disabled={!newTitle.trim()}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#3b82f6',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    opacity: !newTitle.trim() || isCreating ? 0.5 : 1,
+                  }}
+                  disabled={!newTitle.trim() || isCreating}
                 >
-                  Utwórz
+                  {isCreating ? 'Tworzenie...' : 'Utwórz'}
                 </button>
               </div>
             </form>

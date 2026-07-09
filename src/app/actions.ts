@@ -1,15 +1,14 @@
 'use server'
- 
+  
 import db from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { revalidatePath } from 'next/cache';
 import { Survey, SurveySchema, SurveyResponse } from '@/types';
-import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
 export async function createSurvey(formData: FormData) {
   const title = formData.get('title') as string;
-  if (!title) return;
+  if (!title) return { error: 'Tytuł jest wymagany' };
   
   const description = (formData.get('description') as string) || '';
   const id = uuidv4();
@@ -21,7 +20,7 @@ export async function createSurvey(formData: FormData) {
   `).run(id, title, description, JSON.stringify(defaultSchema));
   
   revalidatePath('/');
-  redirect(`/editor/${id}`);
+  return { id };
 }
 
 export async function getSurveys(): Promise<Survey[]> {
