@@ -30,6 +30,7 @@ export interface SurveySchema {
 export interface Survey {
   id: string;
   title: string;
+  description?: string;
   schema_json: string;
   views: number;
   submissions: number;

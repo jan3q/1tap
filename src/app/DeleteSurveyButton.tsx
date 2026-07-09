@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import { deleteSurvey } from './actions';
 
@@ -27,7 +28,7 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
         <Trash2 size={18} />
       </button>
 
-      {showModal && (
+      {showModal && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -36,7 +37,7 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 10000,
+            zIndex: 99999,
             padding: '1rem',
           }}
           onClick={(e) => {
@@ -128,7 +129,8 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -58,6 +58,7 @@ export default function EditorClient({
   configuredAppUrl?: string;
 }) {
   const [title, setTitle] = useState(initialSurvey.title);
+  const [description, setDescription] = useState(initialSurvey.description || '');
   const [questions, setQuestions] = useState<Question[]>(() => {
     const list = [...(initialSurvey.schema.questions || [])];
     const hasGlobalHeader = initialSurvey.schema.header || initialSurvey.schema.description;
@@ -150,7 +151,7 @@ export default function EditorClient({
   const handleSave = () => {
     startTransition(async () => {
       try {
-        await updateSurveySchema(initialSurvey.id, { questions }, title, redirectUrl || null, webhookUrl || null);
+        await updateSurveySchema(initialSurvey.id, { questions }, title, redirectUrl || null, webhookUrl || null, description || null);
         setSaved(true);
         addToast('Ustawienia i struktura ankiety zostały pomyślnie zapisane!', 'success');
         setTimeout(() => setSaved(false), 2000);
@@ -785,6 +786,19 @@ export default function EditorClient({
       ) : activeTab === 'settings' ? (
         <div className="card animate-slide-down" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem' }}>
           <div>
+            <h3 className="h2" style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Opis ankiety</h3>
+            <p className="p-muted" style={{ marginBottom: '1rem' }}>Opcjonalny opis ułatwiający wyszukiwanie i organizację ankiet.</p>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Krótki opis co zawiera ankieta..."
+              className="input"
+              rows={3}
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
             <h3 className="h2" style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Przekierowanie po przesłaniu ankiety</h3>
             <p className="p-muted" style={{ marginBottom: '1rem' }}>Podaj adres URL strony, na którą automatycznie przekierujemy użytkownika po pomyślnym przesłaniu odpowiedzi.</p>
             <input 

@@ -11,13 +11,14 @@ export async function createSurvey(formData: FormData) {
   const title = formData.get('title') as string;
   if (!title) return;
   
+  const description = (formData.get('description') as string) || '';
   const id = uuidv4();
   const defaultSchema: SurveySchema = { questions: [] };
   
   db.prepare(`
-    INSERT INTO surveys (id, title, schema_json) 
-    VALUES (?, ?, ?)
-  `).run(id, title, JSON.stringify(defaultSchema));
+    INSERT INTO surveys (id, title, description, schema_json) 
+    VALUES (?, ?, ?, ?)
+  `).run(id, title, description, JSON.stringify(defaultSchema));
   
   revalidatePath('/');
   redirect(`/editor/${id}`);
@@ -36,13 +37,14 @@ export async function updateSurveySchema(
   schema: SurveySchema, 
   title: string,
   redirectUrl: string | null = null,
-  webhookUrl: string | null = null
+  webhookUrl: string | null = null,
+  description: string | null = null
 ) {
   db.prepare(`
     UPDATE surveys 
-    SET schema_json = ?, title = ?, redirect_url = ?, webhook_url = ? 
+    SET schema_json = ?, title = ?, redirect_url = ?, webhook_url = ?, description = ? 
     WHERE id = ?
-  `).run(JSON.stringify(schema), title, redirectUrl, webhookUrl, id);
+  `).run(JSON.stringify(schema), title, redirectUrl, webhookUrl, description, id);
   revalidatePath(`/editor/${id}`);
 }
 
