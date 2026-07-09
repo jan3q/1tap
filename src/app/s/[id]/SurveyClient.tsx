@@ -231,7 +231,7 @@ export default function SurveyClient({
         <p className="p-muted" style={{ marginBottom: '2rem', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: schema.description }} />
       )}
       
-      <div style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: '#f0f7ff', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#2563eb', border: '1px solid #bfdbfe' }}>
+      <div style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: '#f5f5f5', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#333', border: '1px solid #e0e0e0' }}>
         <strong>Szybkie wypełnianie:</strong> strzałki ↑↓ nawigacja · spacja zaznacz · 1-9 wybór opcji · Enter wyślij
       </div>
 
@@ -250,7 +250,7 @@ export default function SurveyClient({
                 key={q.id} 
                 className="animate-slide-down" 
                 style={{ 
-                  ...(isFocused ? { outline: '2px solid #2563eb', outlineOffset: '4px', borderRadius: 'var(--radius-md)' } : {}),
+                  ...(isFocused ? { outline: '1px solid #333', outlineOffset: '3px', borderRadius: 'var(--radius-md)' } : {}),
                   animationDelay: `${idx * 0.1}s` 
                 }}
               >

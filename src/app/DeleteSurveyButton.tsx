@@ -14,6 +14,9 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
     if (confirmText !== surveyTitle) return;
     setIsDeleting(true);
     await deleteSurvey(surveyId);
+    setShowModal(false);
+    setConfirmText('');
+    setIsDeleting(false);
   };
 
   return (

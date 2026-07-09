@@ -346,10 +346,10 @@ export default function EditorClient({
                   boxShadow: boxShadowStyle,
                 } : {}),
                 ...(focusedQuestionId === q.id ? {
-                  border: isConnected ? 'none' : '2px solid #333',
+                  border: isConnected ? 'none' : '1px solid #333',
                   boxShadow: isConnected 
                     ? `${boxShadowStyle}, 0 0 0 1px #333 inset` 
-                    : '0 0 0 2px #333',
+                    : '0 0 0 1px #333',
                   backgroundColor: isConnected ? `${firstColor}0D` : '#f0f0f3',
                 } : {}),
               }}

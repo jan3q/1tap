@@ -75,8 +75,20 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
         <button
           type="button"
           onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary"
-          style={{ display: 'flex', gap: '0.5rem' }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1.5rem',
+            backgroundColor: '#3b82f6',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 600,
+            fontSize: '1rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
+          }}
         >
           <Plus size={18} />
           Utwórz
@@ -216,11 +228,7 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
           >
             <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Nowa ankieta</h3>
 
-            <form action={createSurvey} onSubmit={() => {
-              setShowCreateModal(false);
-              setNewTitle('');
-              setNewDescription('');
-            }}>
+            <form action={createSurvey}>
               <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.9rem' }}>
                 Nazwa ankiety <span style={{ color: '#ef4444' }}>*</span>
               </label>
