@@ -6,18 +6,17 @@ import { revalidatePath } from 'next/cache';
 import { Survey, SurveySchema, SurveyResponse } from '@/types';
 import { cookies } from 'next/headers';
 
-export async function createSurvey(formData: FormData) {
-  const title = formData.get('title') as string;
+export async function createSurvey(title: string, description?: string) {
   if (!title) return { error: 'Tytuł jest wymagany' };
   
-  const description = (formData.get('description') as string) || '';
   const id = uuidv4();
   const defaultSchema: SurveySchema = { questions: [] };
+  const desc = description || '';
   
   db.prepare(`
     INSERT INTO surveys (id, title, description, schema_json) 
     VALUES (?, ?, ?, ?)
-  `).run(id, title, description, JSON.stringify(defaultSchema));
+  `).run(id, title, desc, JSON.stringify(defaultSchema));
   
   revalidatePath('/');
   return { id };

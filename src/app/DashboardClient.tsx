@@ -62,14 +62,19 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
     e.preventDefault();
     if (!newTitle.trim()) return;
     setIsCreating(true);
-    const formData = new FormData();
-    formData.set('title', newTitle);
-    formData.set('description', newDescription);
-    const result = await createSurvey(formData);
-    if (result && 'id' in result && result.id) {
-      router.push(`/editor/${result.id}`);
+    try {
+      const result = await createSurvey(newTitle.trim(), newDescription.trim() || undefined);
+      if (result && 'id' in result && result.id) {
+        setShowCreateModal(false);
+        setNewTitle('');
+        setNewDescription('');
+        router.push(`/editor/${result.id}`);
+      }
+    } catch (err) {
+      console.error('Błąd tworzenia ankiety:', err);
+    } finally {
+      setIsCreating(false);
     }
-    setIsCreating(false);
   };
 
   const filteredSurveys = useMemo(() => {
