@@ -1,6 +1,7 @@
-import { getSurveys, createSurvey, deleteSurvey, logoutAdmin } from './actions';
+import { getSurveys, createSurvey, logoutAdmin } from './actions';
+import DeleteSurveyButton from './DeleteSurveyButton';
 import Link from 'next/link';
-import { Plus, Eye, CheckSquare, BarChart, LogOut, Trash2 } from 'lucide-react';
+import { Plus, Eye, CheckSquare, BarChart, LogOut } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic'; // Wyłącz caching żeby zawsze widzieć nowe ankiety
@@ -77,11 +78,7 @@ export default async function DashboardPage() {
                 <Link href={`/editor/${survey.id}`} className="btn btn-primary">
                   Edytuj
                 </Link>
-                <form action={deleteSurvey.bind(null, survey.id)}>
-                  <button type="submit" className="btn btn-danger" style={{ padding: '0.5rem 0.75rem' }} title="Usuń ankietę">
-                    <Trash2 size={18} />
-                  </button>
-                </form>
+                <DeleteSurveyButton surveyId={survey.id} surveyTitle={survey.title} />
               </div>
             </div>
           ))}

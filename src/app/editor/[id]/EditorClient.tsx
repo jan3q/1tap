@@ -83,6 +83,7 @@ export default function EditorClient({
   const [saved, setSaved] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
   const [showConnections, setShowConnections] = useState(false);
+  const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -178,6 +179,33 @@ export default function EditorClient({
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {
     setQuestions(questions.map(q => q.id === id ? { ...q, ...updates } : q));
+  };
+
+  const getQuestionConnections = (questionId: string): { targets: Question[]; sources: Question[] } => {
+    const targets = questions.filter(q => 
+      q.id !== questionId && q.logic?.conditions?.some(c => c.fieldId === questionId)
+    );
+    const question = questions.find(q => q.id === questionId);
+    const sources = question?.logic?.conditions
+      ?.map(c => questions.find(q => q.id === c.fieldId))
+      .filter(Boolean) as Question[] || [];
+    return { targets, sources };
+  };
+
+  const handleDeleteClick = (id: string) => {
+    const { targets, sources } = getQuestionConnections(id);
+    if (targets.length > 0 || sources.length > 0) {
+      setDeleteQuestionId(id);
+    } else {
+      setQuestions(questions.filter(q => q.id !== id));
+    }
+  };
+
+  const confirmDeleteQuestion = () => {
+    if (deleteQuestionId) {
+      setQuestions(questions.filter(q => q.id !== deleteQuestionId));
+      setDeleteQuestionId(null);
+    }
   };
 
   const removeQuestion = (id: string) => {
@@ -687,7 +715,7 @@ export default function EditorClient({
                         Wymagane
                       </label>
                     )}
-                    <button onClick={() => removeQuestion(q.id)} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }}>
+                    <button onClick={() => handleDeleteClick(q.id)} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }}>
                       <Trash2 size={16} /> {q.type === 'header' ? 'Usuń sekcję' : 'Usuń'}
                     </button>
                   </div>
@@ -1000,6 +1028,58 @@ export default function EditorClient({
           )}
         </div>
       )}
+
+      {/* Modal potwierdzenia usunięcia pytania */}
+      {deleteQuestionId && (() => {
+        const question = questions.find(q => q.id === deleteQuestionId);
+        const { targets, sources } = getQuestionConnections(deleteQuestionId);
+        const allConnected = [...targets, ...sources].filter((q, i, arr) => arr.findIndex(x => x.id === q.id) === i);
+        if (!question) return null;
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1100, padding: '1rem',
+          }}
+            onClick={(e) => { if (e.target === e.currentTarget) setDeleteQuestionId(null); }}
+          >
+            <div style={{
+              backgroundColor: '#fff', borderRadius: 'var(--radius-lg)', padding: '2rem',
+              maxWidth: '500px', width: '100%', boxShadow: 'var(--shadow-lg)',
+              border: '2px solid #dc2626',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                <h3 style={{ color: '#dc2626', fontSize: '1.15rem', margin: 0 }}>Pole powiązane</h3>
+              </div>
+              <p style={{ marginBottom: '0.75rem', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                Pole <strong style={{ color: '#dc2626' }}>&quot;{question.title ? question.title.replace(/<[^>]*>/g, '') : '(bez nazwy)'}&quot;</strong> jest powiązane z innymi polami poprzez logikę warunkową.
+              </p>
+              {allConnected.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.5rem' }}>Powiązane pola:</p>
+                  <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem', color: '#374151' }}>
+                    {allConnected.map(cq => (
+                      <li key={cq.id} style={{ marginBottom: '0.25rem' }}>
+                        {cq.title ? cq.title.replace(/<[^>]*>/g, '') : '(bez nazwy)'}
+                        {targets.some(t => t.id === cq.id) && ' — to pole ma warunek odnoszący się do usuwanego pola'}
+                        {sources.some(s => s.id === cq.id) && ' — usuwane pole ma warunek odnoszący się do tego pola'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                Usunięcie tego pola spowoduje również usunięcie jego logiki warunkowej. Czy na pewno chcesz usunąć?
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setDeleteQuestionId(null)} className="btn btn-secondary">Anuluj</button>
+                <button type="button" onClick={confirmDeleteQuestion} className="btn btn-danger">Usuń</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toasts Container */}
       <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', zIndex: 1000, maxWidth: '350px' }}>
