@@ -32,7 +32,20 @@ export default async function RootLayout({
   const pathname = headersList.get('x-pathname') || ''
 
   const isSurveyPage = pathname.startsWith('/s/')
-  const showLogout = !!activeToken && token === activeToken && !isSurveyPage && pathname !== '/login'
+  const isPublicApi = pathname.startsWith('/api/') || pathname.startsWith('/share/')
+  const isLoginPage = pathname === '/login'
+
+  const customUser = getSystemSetting('admin_username');
+  const customPass = getSystemSetting('admin_password');
+  const isAuthRequired = !!process.env.ADMIN_PASSWORD || !!customUser || !!customPass;
+
+  const isAuthenticated = !isAuthRequired || (!!activeToken && token === activeToken);
+
+  if (!isAuthenticated && !isSurveyPage && !isLoginPage && !isPublicApi) {
+    redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
+  }
+
+  const showLogout = isAuthenticated && isAuthRequired && !isSurveyPage && !isLoginPage && !isPublicApi;
 
   return (
     <html lang="pl">

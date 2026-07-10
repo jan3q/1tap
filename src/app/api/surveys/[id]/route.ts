@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateSurveySchema } from '@/app/actions';
 import { SurveySchema } from '@/types';
+import { cookies } from 'next/headers';
+import { getSystemSetting } from '@/lib/db';
 
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    const customUser = getSystemSetting('admin_username');
+    const customPass = getSystemSetting('admin_password');
+    const isAuthRequired = !!process.env.ADMIN_PASSWORD || !!customUser || !!customPass;
+    const activeToken = getSystemSetting('session_token') || process.env.ADMIN_PASSWORD;
+
+    if (isAuthRequired && (!activeToken || token !== activeToken)) {
+      return NextResponse.json({ success: false, error: 'Brak autoryzacji' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
 

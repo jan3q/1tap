@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSurvey } from '@/app/actions';
+import { cookies } from 'next/headers';
+import { getSystemSetting } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    const customUser = getSystemSetting('admin_username');
+    const customPass = getSystemSetting('admin_password');
+    const isAuthRequired = !!process.env.ADMIN_PASSWORD || !!customUser || !!customPass;
+    const activeToken = getSystemSetting('session_token') || process.env.ADMIN_PASSWORD;
+
+    if (isAuthRequired && (!activeToken || token !== activeToken)) {
+      return NextResponse.json({ success: false, error: 'Brak autoryzacji' }, { status: 401 });
+    }
+
     const body = await req.json();
     const title = typeof body?.title === 'string' ? body.title.trim() : '';
     const description = typeof body?.description === 'string' ? body.description.trim() : '';

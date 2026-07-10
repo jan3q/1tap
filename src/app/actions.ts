@@ -8,7 +8,21 @@ import { cookies, headers } from 'next/headers';
 import { verifyTOTP, generateSecret, getOTPAuthURI } from '@/lib/totp';
 import { sendEmail } from '@/lib/mail';
 
+async function authCheck() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  const customUser = getSystemSetting('admin_username');
+  const customPass = getSystemSetting('admin_password');
+  const isAuthRequired = !!process.env.ADMIN_PASSWORD || !!customUser || !!customPass;
+  const activeToken = getSystemSetting('session_token') || process.env.ADMIN_PASSWORD;
+
+  if (isAuthRequired && (!activeToken || token !== activeToken)) {
+    throw new Error('Brak autoryzacji');
+  }
+}
+
 export async function createSurvey(title: string, description?: string) {
+  await authCheck();
   if (!title) return { error: 'Tytuł jest wymagany' };
   
   const id = uuidv4();
@@ -25,6 +39,7 @@ export async function createSurvey(title: string, description?: string) {
 }
 
 export async function getSurveys(): Promise<Survey[]> {
+  await authCheck();
   return db.prepare('SELECT * FROM surveys ORDER BY created_at DESC').all() as Survey[];
 }
 
@@ -40,6 +55,7 @@ export async function updateSurveySchema(
   webhookUrl: string | null = null,
   description: string | null = null
 ) {
+  await authCheck();
   db.prepare(`
     UPDATE surveys 
     SET schema_json = ?, title = ?, redirect_url = ?, webhook_url = ?, description = ? 
@@ -236,10 +252,12 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
 }
 
 export async function getSurveyResponses(surveyId: string): Promise<SurveyResponse[]> {
+  await authCheck();
   return db.prepare('SELECT * FROM survey_responses WHERE survey_id = ? ORDER BY created_at DESC').all(surveyId) as SurveyResponse[];
 }
 
 export async function deleteSurvey(id: string) {
+  await authCheck();
   db.prepare('DELETE FROM surveys WHERE id = ?').run(id);
   revalidatePath('/');
 }
