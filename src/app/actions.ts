@@ -92,18 +92,34 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
         const schema = JSON.parse(survey.schema_json);
         const questions = schema.questions || [];
         
-        questions.forEach((q: any) => {
-          if (answers[q.id] !== undefined) {
-            const key = sanitizeKey(q.title) || q.id;
-            let uniqueKey = key;
-            let counter = 1;
-            // Zapobieganie kolizji nazw
-            while (readableAnswers[uniqueKey] !== undefined) {
-              uniqueKey = `${key}_${counter}`;
-              counter++;
-            }
-            readableAnswers[uniqueKey] = answers[q.id];
+        const mapType = (type: string) => {
+          switch (type) {
+            case 'short-text': return 'SHORT_TEXT';
+            case 'long-text': return 'LONG_TEXT';
+            case 'number': return 'NUMBER';
+            case 'checkbox': return 'MULTIPLE_CHOICE';
+            case 'radio': return 'SINGLE_CHOICE';
+            case 'scale': return 'SCALE';
+            default: return type.toUpperCase();
           }
+        };
+
+        questions.forEach((q: any) => {
+          if (q.type === 'header') return; // Pomijamy nagłówki sekcji
+          
+          let val = answers[q.id];
+          if (val === undefined || val === '') {
+            val = null;
+          }
+          
+          const customValue = answers[`${q.id}_custom`] || null;
+          
+          readableAnswers[q.id] = {
+            label: q.title || '',
+            value: val,
+            type: mapType(q.type),
+            ...(q.customAnswer ? { custom_value: customValue } : {})
+          };
         });
       } else {
         readableAnswers = answers;
