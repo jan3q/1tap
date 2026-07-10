@@ -7,6 +7,7 @@ import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCi
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RichTextField } from './RichTextField';
+import { getScaleValues } from '@/lib/utils';
 
 const MANUAL_COLORS: { name: string; hex: string }[] = [
   { name: 'Niebieski', hex: '#3b82f6' },
@@ -198,7 +199,10 @@ export default function EditorClient({
       type,
       title: '',
       required: false,
-      options: ['Opcja 1']
+      options: type === 'radio' || type === 'checkbox' ? ['Opcja 1'] : undefined,
+      scaleMin: type === 'scale' ? 1 : undefined,
+      scaleMax: type === 'scale' ? 10 : undefined,
+      scaleStep: type === 'scale' ? 1 : undefined,
     };
     setQuestions([...questions, newQuestion]);
   };
@@ -551,6 +555,54 @@ export default function EditorClient({
                     </div>
                   )}
 
+                  {q.type === 'scale' && (
+                    <div style={{ paddingLeft: '1rem', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '0.75rem' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                        Od
+                        <input
+                          type="number"
+                          value={q.scaleMin ?? 1}
+                          onChange={(e) => updateQuestion(q.id, { scaleMin: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="input"
+                          style={{ width: '90px', padding: '0.4rem 0.6rem', fontSize: '0.9rem' }}
+                          placeholder="1"
+                          step="any"
+                        />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                        Do
+                        <input
+                          type="number"
+                          value={q.scaleMax ?? 10}
+                          onChange={(e) => updateQuestion(q.id, { scaleMax: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="input"
+                          style={{ width: '90px', padding: '0.4rem 0.6rem', fontSize: '0.9rem' }}
+                          placeholder="10"
+                          step="any"
+                        />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                        Krok
+                        <input
+                          type="number"
+                          value={q.scaleStep ?? 1}
+                          onChange={(e) => updateQuestion(q.id, { scaleStep: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="input"
+                          style={{ width: '90px', padding: '0.4rem 0.6rem', fontSize: '0.9rem' }}
+                          placeholder="1"
+                          step="any"
+                        />
+                      </label>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingBottom: '0.45rem' }}>
+                        Wartości: {(() => {
+                          const vals = getScaleValues(q);
+                          const previewVals = vals.slice(0, 5);
+                          return previewVals.join(', ') + (vals.length > 5 ? ', …' : '');
+                        })()}
+                      </span>
+                    </div>
+                  )}
+
                   {i > 0 && q.type !== 'header' && (
                     <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '0.75rem', fontSize: '0.9rem' }}>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 500, marginBottom: q.logic ? '0.5rem' : 0 }}>
@@ -649,7 +701,7 @@ export default function EditorClient({
                                     >
                                       {prevQuestions.map((pq, idx) => (
                                         <option key={pq.id} value={pq.id}>
-                                          Pytanie: {pq.title ? pq.title.replace(/<[^>]*>/g, '').substring(0, 25) + '...' : '(bez nazwy)'}
+                                          Pytanie: {pq.title ? pq.title.replace(/<[^>]*>/g, '').substring(0, 25) + '...' : '\u00A0'}
                                         </option>
                                       ))}
                                     </select>
@@ -816,10 +868,10 @@ export default function EditorClient({
 
           <div className="card" style={{ marginTop: '2rem', borderStyle: 'dashed', backgroundColor: '#fcfcfd', textAlign: 'center', padding: '1.5rem' }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', marginTop: 0 }}>Dodaj element do ankiety</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
-              <button onClick={() => addQuestion('header')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto', border: '2px solid #000', backgroundColor: '#f0f0f0', fontWeight: 600 }}>
-                <Plus size={16}/> Nagłówek i podtytuł
-              </button>
+            <button onClick={() => addQuestion('header')} className="btn btn-secondary" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem', minHeight: 'auto', border: '1px solid var(--border-color)', backgroundColor: '#f8fafc', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-color)', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)', marginBottom: '0.75rem' }}>
+              <Plus size={18}/> Nagłówek i podtytuł
+            </button>
+            <div className="add-element-grid">
               <button onClick={() => addQuestion('short-text')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
                 <Type size={16}/> Krótkie pytanie
               </button>
@@ -836,7 +888,7 @@ export default function EditorClient({
                 <CheckSquare size={16}/> Wiele wyborów
               </button>
               <button onClick={() => addQuestion('scale')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
-                <SlidersHorizontal size={16}/> Skala 1-10
+                <SlidersHorizontal size={16}/> Skala
               </button>
             </div>
           </div>
@@ -1148,7 +1200,7 @@ export default function EditorClient({
                       if (!s || s.total === 0) {
                         return (
                           <div key={q.id} style={{ backgroundColor: '#fafafa', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-color)' }} dangerouslySetInnerHTML={{ __html: q.title || 'Pytanie bez nazwy' }} />
+                            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-color)' }} dangerouslySetInnerHTML={{ __html: q.title || '' }} />
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>Brak odpowiedzi.</p>
                           </div>
                         );
@@ -1156,7 +1208,7 @@ export default function EditorClient({
 
                       return (
                         <div key={q.id} style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-color)' }} dangerouslySetInnerHTML={{ __html: q.title || 'Pytanie bez nazwy' }} />
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-color)' }} dangerouslySetInnerHTML={{ __html: q.title || '' }} />
                           
                           {(q.type === 'radio' || q.type === 'checkbox') && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1239,7 +1291,7 @@ export default function EditorClient({
                               <div key={q.id} style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '1rem', fontSize: '0.95rem' }}>
                                 <span 
                                   style={{ fontWeight: 600, color: 'var(--text-muted)' }} 
-                                  dangerouslySetInnerHTML={{ __html: q.title || 'Pytanie bez nazwy' }} 
+                                  dangerouslySetInnerHTML={{ __html: q.title || '' }} 
                                 />
                                 <span style={{ color: 'var(--text-color)' }}>{renderedAnswer}</span>
                               </div>

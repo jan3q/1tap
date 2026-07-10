@@ -151,3 +151,22 @@ input, textarea, select, button {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+.add-element-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .add-element-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .add-element-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

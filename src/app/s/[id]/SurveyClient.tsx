@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { SurveySchema } from '@/types';
+import { SurveySchema, Question } from '@/types';
 import { submitSurveyResponse } from '@/app/actions';
+import { getScaleValues } from '@/lib/utils';
 
 export default function SurveyClient({ 
   surveyId,
@@ -293,7 +294,7 @@ export default function SurveyClient({
                     style={{ cursor: 'pointer' }}
                   >
                     <label className="h2" style={{ display: 'block', fontSize: '1.25rem', marginBottom: '0.5rem' }}>
-                      <span dangerouslySetInnerHTML={{ __html: q.title || 'Pytanie bez nazwy' }} /> {q.required && <span style={{ color: '#ef4444' }}>*</span>}
+                      <span dangerouslySetInnerHTML={{ __html: q.title || '' }} /> {q.required && <span style={{ color: '#ef4444' }}>*</span>}
                     </label>
                     {q.description && (
                       <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '-0.25rem', marginBottom: '0.75rem' }} dangerouslySetInnerHTML={{ __html: q.description }} />
@@ -440,22 +441,23 @@ export default function SurveyClient({
 
               {q.type === 'scale' && (
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                    <label key={num} style={{ cursor: 'pointer' }}>
-                      <input 
-                        type="radio" 
+                  {getScaleValues(q).map((num, numIdx) => (
+                    <label key={numIdx} style={{ cursor: 'pointer' }}>
+                      <input
+                        type="radio"
                         name={q.id}
                         required={q.required}
                         checked={answers[q.id] === num.toString()}
                         onChange={() => handleInput(q.id, num.toString())}
                         style={{ display: 'none' }}
                       />
-                      <div style={{ 
-                        width: '3rem', 
-                        height: '3rem', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
+                      <div style={{
+                        minWidth: '3rem',
+                        height: '3rem',
+                        padding: '0 0.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border-color)',
                         backgroundColor: answers[q.id] === num.toString() ? 'var(--primary-color)' : 'var(--card-bg)',

@@ -9,6 +9,7 @@ export interface Question {
   customAnswer?: boolean; // pole "własna odpowiedź" dla radio/checkbox
   scaleMin?: number;
   scaleMax?: number;
+  scaleStep?: number;
   description?: string; // objaśnienie pod pytaniem lub podtytuł dla nagłówka
   colorTag?: string; // ręcznie przypisany kolor powiązania (hex), widoczny gdy włączono "Samodzielne powiązanie"
   logic?: {

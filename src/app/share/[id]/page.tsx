@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import ShareClient from './ShareClient';
 import { SurveySchema } from '@/types';
 import { headers } from 'next/headers';
+import { getScaleValues } from '@/lib/utils';
 
 function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): string {
   const submitUrl = `${baseUrl}/api/s/${survey.id}/submit`;
@@ -16,7 +17,7 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
     if (q.type === 'header') {
       fieldsHTML += `
       <div class="form-group header-block" id="group-${q.id}" style="margin: 2rem 0 1.5rem 0;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.35rem; color: #1a1a1a; border: none; padding: 0;">${q.title || 'Nagłówek sekcji'}</h2>
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.35rem; color: #1a1a1a; border: none; padding: 0;">${q.title || ''}</h2>
         ${q.description ? `<p style="font-size: 0.95rem; color: #6b7280; margin: 0;">${q.description}</p>` : ''}
       </div>`;
       return;
@@ -25,7 +26,7 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
     fieldsHTML += `
       <div class="form-group" id="group-${q.id}" data-type="${q.type}" style="margin-bottom: 2rem; transition: all 0.3s ease;">
         <label style="display: block; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: #1a1a1a;">
-          ${q.title || 'Pytanie bez nazwy'} ${star}
+          ${q.title || ''} ${star}
         </label>
         ${desc}
     `;
@@ -58,13 +59,13 @@ function generateFullHTML(survey: any, schema: SurveySchema, baseUrl: string): s
       fieldsHTML += `        </div>`;
     } else if (q.type === 'scale') {
       fieldsHTML += `        <div style="display: flex; gap: 0.35rem; margin-top: 0.5rem; flex-wrap: wrap;">`;
-      for (let sVal = 1; sVal <= 10; sVal++) {
+      getScaleValues(q).forEach((sVal) => {
         fieldsHTML += `
-          <label style="flex: 1; min-width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;" class="scale-item-${q.id}" onclick="selectScale(event, '${q.id}', ${sVal})">
+          <label style="min-width: 40px; height: 40px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; box-sizing: border-box;" class="scale-item-${q.id}" onclick="selectScale(event, '${q.id}', '${sVal}')">
             <input type="radio" name="${q.id}" value="${sVal}" style="display: none;" />
             <span style="font-size: 1rem; font-weight: 500;">${sVal}</span>
           </label>`;
-      }
+      });
       fieldsHTML += `        </div>`;
     }
 
