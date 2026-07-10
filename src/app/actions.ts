@@ -114,13 +114,32 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
             val = null;
           }
           
-          const customValue = answers[`${q.id}_custom`] || null;
+          const customValue = answers[`${q.id}_custom`];
+          if (customValue && customValue.trim()) {
+            if (Array.isArray(val)) {
+              // Dla checkboxów (tablic) filtrujemy ewentualne placeholdery i dodajemy własną odpowiedź
+              val = [...val.filter(v => v !== '__custom__'), customValue.trim()];
+            } else {
+              val = customValue.trim();
+            }
+          }
           
-          readableAnswers[q.id] = {
-            label: q.title || '',
+          const cleanLabel = (q.title || '')
+            .replace(/<[^>]*>/g, '') // Usuwa tagi HTML
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .trim();
+
+          const shortId = q.id.replace(/-/g, '').slice(0, 10);
+          const questionKey = `question_${shortId}`;
+
+          readableAnswers[questionKey] = {
+            label: cleanLabel,
             value: val,
-            type: mapType(q.type),
-            ...(q.customAnswer ? { custom_value: customValue } : {})
+            type: mapType(q.type)
           };
         });
       } else {
@@ -166,10 +185,27 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
 
         schema.questions.forEach((q: any) => {
           if (q.type === 'header') return;
-          const ans = answers[q.id];
-          const label = q.title || q.id;
-          let valText = '';
+          
+          let ans = answers[q.id];
+          if (ans === undefined || ans === '') {
+            ans = null;
+          }
+          
+          const customValue = answers[`${q.id}_custom`];
+          if (customValue && customValue.trim()) {
+            if (Array.isArray(ans)) {
+              ans = [...ans.filter(v => v !== '__custom__'), customValue.trim()];
+            } else {
+              ans = customValue.trim();
+            }
+          }
 
+          const label = (q.title || q.id)
+            .replace(/<[^>]*>/g, '') // Usuwa tagi HTML
+            .replace(/&nbsp;/g, ' ')
+            .trim();
+
+          let valText = '';
           if (ans === undefined || ans === '' || ans === null) {
             valText = '(brak odpowiedzi)';
           } else if (Array.isArray(ans)) {
@@ -179,9 +215,6 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
           }
 
           emailText += `- ${label}: ${valText}\n`;
-          if (q.customAnswer && answers[`${q.id}_custom`]) {
-            emailText += `  [Inna odpowiedź]: ${answers[`${q.id}_custom`]}\n`;
-          }
         });
 
         sendEmail({
