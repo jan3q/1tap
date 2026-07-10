@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
   const isPublicPath = 
     path.startsWith('/s/') || // Publiczne wypełnianie ankiet
     path.startsWith('/api/s/') || // Endpoint API do wysyłki odpowiedzi
+    path.startsWith('/api/auth/') || // API sprawdzania sesji (zapobiega pętli rekurencji)
     path === '/login' || // Strona logowania
     path.startsWith('/_next/') || // Zasoby deweloperskie i produkcyjne Next.js
     path.includes('.'); // Favicony, manifesty, pliki statyczne
@@ -27,6 +28,10 @@ export async function middleware(request: NextRequest) {
 
   try {
     const checkUrl = new URL('/api/auth/check', request.url);
+    if (checkUrl.hostname === 'localhost') {
+      checkUrl.hostname = '127.0.0.1'; // Obejście problemu z rozdzielczością localhost (IPv6 vs IPv4) w Node.js na macOS
+    }
+    
     const res = await fetch(checkUrl.toString(), {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -55,7 +60,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Przechwytujemy wszystko poza plikami statycznymi i API wysyłki ankiet
-    '/((?!api/s/|_next/static|_next/image|favicon.ico).*)',
+    // Przechwytujemy wszystko poza plikami statycznymi, API wysyłki ankiet i weryfikacji sesji
+    '/((?!api/s/|api/auth/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
