@@ -357,6 +357,12 @@ export async function loginAdmin(usernameInput: string, passwordInput: string, t
       setSystemSetting('failed_login_attempts', failedAttempts.toString());
       
       // Wyślij e-mail z alertem o błędzie logowania (po każdej próbie dla czujności)
+      const emergencyToken = uuidv4();
+      setSystemSetting('emergency_token', emergencyToken);
+      const protocol = headersList.get('x-forwarded-proto') || 'http';
+      const host = headersList.get('host') || 'localhost:3000';
+      const emergencyUrl = `${protocol}://${host}/api/auth/emergency?token=${emergencyToken}`;
+
       const alertSubject = `[1tap] Ostrzeżenie: Nieudana próba logowania`;
       const alertText = [
         `Wykryto nieudaną próbę logowania do panelu 1tap.`,
@@ -368,6 +374,9 @@ export async function loginAdmin(usernameInput: string, passwordInput: string, t
         `- Adres IP: ${ip}`,
         `- Lokalizacja: ${location}`,
         `- Przeglądarka: ${userAgent}`,
+        ``,
+        `Jeśli to nie Ty, upewnij się, że Twoje hasło jest bezpieczne. Aby zresetować hasło i wylogować wszystkie sesje kliknij poniżej:`,
+        `${emergencyUrl}`
       ].join('\n');
       sendEmail({ to: username, subject: alertSubject, text: alertText }).catch(err => console.error('[SMTP Alert Error]:', err));
 
@@ -400,6 +409,13 @@ export async function loginAdmin(usernameInput: string, passwordInput: string, t
   setSystemSetting('lockout_until', null);
 
   const location = await getGeoIPLocation(ip);
+  const protocol = headersList.get('x-forwarded-proto') || 'http';
+  const host = headersList.get('host') || 'localhost:3000';
+  const baseUrl = `${protocol}://${host}`;
+  const emergencyToken = uuidv4();
+  setSystemSetting('emergency_token', emergencyToken);
+  const emergencyUrl = `${baseUrl}/api/auth/emergency?token=${emergencyToken}`;
+
   const loginSubject = `[1tap] Informacja: Udane logowanie do panelu administratora`;
   const loginText = [
     `Wykryto nowe udane logowanie do Twojego panelu administratora.`,
@@ -411,7 +427,10 @@ export async function loginAdmin(usernameInput: string, passwordInput: string, t
     `- Lokalizacja: ${location}`,
     `- Przeglądarka: ${userAgent}`,
     ``,
-    `Jeśli to nie Ty, zmień natychmiast hasło w zakładce Bezpieczeństwo.`,
+    `Jeśli to nie Ty, kliknij poniższy link, aby NATYCHMIAST wylogować wszystkie sesje i wygenerować nowe hasło:`,
+    `${emergencyUrl}`,
+    ``,
+    `Możesz również zalogować się samodzielnie i zmienić hasło w zakładce Ustawienia.`,
   ].join('\n');
   sendEmail({ to: username, subject: loginSubject, text: loginText }).catch(err => console.error('[SMTP Alert Error]:', err));
 

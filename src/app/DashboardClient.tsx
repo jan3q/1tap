@@ -367,7 +367,7 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
                 <Link href={`/editor/${survey.id}?tab=results`} className="btn btn-secondary" style={{ display: 'flex', gap: '0.35rem' }}>
                   <BarChart size={16} /> Wyniki
                 </Link>
-                <Link href={`/s/${survey.id}`} className="btn btn-secondary" target="_blank" style={{ display: 'flex', gap: '0.35rem' }}>
+                <Link href={`/s/${survey.id}?preview=true`} className="btn btn-secondary" target="_blank" style={{ display: 'flex', gap: '0.35rem' }}>
                   <Eye size={16} /> Podgląd
                 </Link>
                 <Link href={`/editor/${survey.id}`} className="btn btn-primary" style={{ display: 'flex', gap: '0.35rem' }}>

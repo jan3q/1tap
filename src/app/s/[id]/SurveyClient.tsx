@@ -90,7 +90,7 @@ export default function SurveyClient({
     const autoAdvance = (currentIdx: number) => {
       setTimeout(() => {
         focusQuestion(currentIdx + 1);
-      }, 300);
+      }, 100);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -387,7 +387,7 @@ export default function SurveyClient({
                           handleInput(q.id, opt);
                           setTimeout(() => {
                             focusQuestion(inputIdx + 1);
-                          }, 300);
+                          }, 100);
                         }}
                         style={{ display: 'none' }}
                       />
@@ -493,7 +493,7 @@ export default function SurveyClient({
                           handleInput(q.id, num.toString());
                           setTimeout(() => {
                             focusQuestion(inputIdx + 1);
-                          }, 300);
+                          }, 100);
                         }}
                         style={{ display: 'none' }}
                       />
