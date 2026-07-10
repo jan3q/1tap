@@ -455,6 +455,19 @@ export async function logoutAdmin() {
   return { success: true };
 }
 
+export async function logoutAllSessions() {
+  await authCheck();
+  // Clear the active session token from the database
+  setSystemSetting('session_token', null);
+  process.env.ADMIN_SESSION_TOKEN = undefined;
+  
+  // Also delete the local cookie so the current user is properly redirected
+  const cookieStore = await cookies();
+  cookieStore.delete('auth_token');
+  
+  return { success: true };
+}
+
 export async function get2FAStatus() {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;

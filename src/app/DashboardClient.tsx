@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Plus, Eye, BarChart, Pencil, Search, X } from 'lucide-react';
 import DeleteSurveyButton from './DeleteSurveyButton';
 import { Survey } from '@/types';
-import { get2FAStatus, prepare2FA, enable2FA, disable2FA, updateAdminCredentials } from '@/app/actions';
+import { get2FAStatus, prepare2FA, enable2FA, disable2FA, updateAdminCredentials, logoutAllSessions } from '@/app/actions';
 
 function normalize(text: string): string {
   return text
@@ -468,6 +468,30 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
                     Zapisz dane logowania
                   </button>
                 </form>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <h3 className="h2" style={{ margin: 0, fontSize: '1.25rem', marginBottom: '0.5rem', color: '#ef4444' }}>Bezpieczeństwo awaryjne</h3>
+                <p className="p-muted" style={{ marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+                  Wyloguj natychmiast wszystkie urządzenia z dostępem do tego panelu. Twoja aktualna sesja również zostanie zamknięta i będziesz musiał zalogować się ponownie (hasło pozostaje bez zmian).
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm('Czy na pewno chcesz wylogować wszystkie aktywne sesje? Nastąpi natychmiastowe wylogowanie.')) {
+                      await logoutAllSessions();
+                      window.location.href = '/login';
+                    }
+                  }}
+                  className="btn btn-danger"
+                  style={{ alignSelf: 'flex-start', padding: '0.65rem 1.5rem', backgroundColor: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-md)' }}
+                >
+                  Wyloguj wszystkie sesje
+                </button>
               </div>
             </div>
           </div>
