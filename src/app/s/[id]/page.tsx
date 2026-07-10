@@ -32,7 +32,7 @@ export default async function SurveyPage({
   const schema = JSON.parse(survey.schema_json) as SurveySchema;
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '3rem 1rem' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '3rem 2rem' }}>
       {isPreview && (
         <div style={{ padding: '0.5rem 1rem', backgroundColor: '#fef08a', color: '#854d0e', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: 500, textAlign: 'center' }}>
           To jest podgląd ankiety. Twoje odpowiedzi nie zostaną zapisane, a ciasteczka blokujące są ignorowane.

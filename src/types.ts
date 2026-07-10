@@ -29,6 +29,9 @@ export interface SurveySchema {
   questions: Question[];
   theme?: 'light' | 'dark'; // motyw strony publicznej ankiety
   buttonColor?: string; // kolor przycisków na stronie publicznej ankiety (hex)
+  submitBtnText?: string;
+  submitBtnSize?: 'small' | 'medium' | 'large';
+  submitBtnAlign?: 'left' | 'right' | 'center' | 'full';
 }
 
 export interface Survey {

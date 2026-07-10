@@ -91,6 +91,10 @@ export default function EditorClient({
   const [webhookUrl, setWebhookUrl] = useState(initialSurvey.webhook_url || '');
   const [theme, setTheme] = useState<'light' | 'dark'>(initialSurvey.schema.theme || 'light');
   const [buttonColor, setButtonColor] = useState(initialSurvey.schema.buttonColor || '#000000');
+  const [submitBtnText, setSubmitBtnText] = useState(initialSurvey.schema.submitBtnText || 'Wyślij odpowiedź');
+  const [submitBtnSize, setSubmitBtnSize] = useState<'small' | 'medium' | 'large'>(initialSurvey.schema.submitBtnSize || 'medium');
+  const [submitBtnAlign, setSubmitBtnAlign] = useState<'left' | 'right' | 'center' | 'full'>(initialSurvey.schema.submitBtnAlign || 'right');
+  const [showBtnConfig, setShowBtnConfig] = useState(false);
   const [manualConnections, setManualConnections] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'settings' | 'results'>(initialTab);
   const [resultsSubTab, setResultsSubTab] = useState<'summary' | 'responses'>('summary');
@@ -170,7 +174,14 @@ export default function EditorClient({
   const handleSave = () => {
     startTransition(async () => {
       try {
-        const schema = { questions, theme, buttonColor };
+        const schema = { 
+          questions, 
+          theme, 
+          buttonColor,
+          submitBtnText,
+          submitBtnSize,
+          submitBtnAlign
+        };
         const res = await fetch(`/api/surveys/${initialSurvey.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -959,7 +970,12 @@ export default function EditorClient({
                 <div style={{ display: 'inline-flex', gap: '2px', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <button
                     type="button"
-                    onClick={() => setTheme('light')}
+                    onClick={() => {
+                      setTheme('light');
+                      if (buttonColor === '#ffffff') {
+                        setButtonColor('#000000');
+                      }
+                    }}
                     style={{
                       padding: '0.45rem 1rem',
                       fontSize: '0.85rem',
@@ -976,7 +992,12 @@ export default function EditorClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTheme('dark')}
+                    onClick={() => {
+                      setTheme('dark');
+                      if (buttonColor === '#000000') {
+                        setButtonColor('#ffffff');
+                      }
+                    }}
                     style={{
                       padding: '0.45rem 1rem',
                       fontSize: '0.85rem',
@@ -1011,20 +1032,10 @@ export default function EditorClient({
                     className="input"
                     style={{ width: '110px', padding: '0.45rem 0.6rem', fontSize: '0.9rem', textTransform: 'uppercase' }}
                   />
-                  <span
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '0.5rem 1.25rem', borderRadius: 'var(--radius-md)',
-                      backgroundColor: buttonColor, color: ['#eab308', '#22c55e', '#f97316'].includes(buttonColor.toLowerCase()) ? '#1a1a1a' : '#fff',
-                      fontWeight: 600, fontSize: '0.9rem', boxShadow: `0 2px 6px ${buttonColor}55`,
-                    }}
-                  >
-                    Podgląd przycisku
-                  </span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Szybki wybór:</span>
-                  {['#000000', '#3b82f6', '#a855f7', '#ef4444', '#22c55e', '#f97316', '#eab308'].map(c => (
+                  {['#ffffff', '#000000', '#3b82f6', '#a855f7', '#ef4444', '#22c55e', '#f97316', '#eab308'].map(c => (
                     <button
                       key={c}
                       type="button"
@@ -1038,6 +1049,114 @@ export default function EditorClient({
                     />
                   ))}
                 </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', marginTop: '0.25rem' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.9rem' }}>Przycisk wyślij odpowiedź</label>
+                <p className="p-muted" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+                  Kliknij przycisk poniżej, aby zmienić napis na nim, dostosować rozmiar oraz wyrównanie układu.
+                </p>
+                
+                <div style={{ 
+                  border: '1px dashed var(--border-color)', 
+                  borderRadius: 'var(--radius-lg)', 
+                  padding: '1.5rem', 
+                  backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc',
+                  display: 'flex',
+                  justifyContent: submitBtnAlign === 'left' ? 'flex-start' : submitBtnAlign === 'center' ? 'center' : submitBtnAlign === 'right' ? 'flex-end' : 'stretch',
+                  alignItems: 'center',
+                  marginBottom: '1rem'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowBtnConfig(!showBtnConfig)}
+                    style={{
+                      padding: submitBtnSize === 'small' ? '0.5rem 1rem' : submitBtnSize === 'large' ? '1.25rem 2.5rem' : '0.85rem 1.75rem',
+                      fontSize: submitBtnSize === 'small' ? '0.85rem' : submitBtnSize === 'large' ? '1.2rem' : '1.05rem',
+                      backgroundColor: buttonColor,
+                      color: (['#eab308', '#22c55e', '#f97316', '#ffffff', '#fff'].includes(buttonColor.toLowerCase()) || (theme === 'dark' && buttonColor.toLowerCase() === '#ffffff')) ? '#1a1a1a' : '#fff',
+                      fontWeight: 600,
+                      borderRadius: 'var(--radius-md)',
+                      border: buttonColor.toLowerCase() === '#ffffff' ? '1px solid #ccc' : 'none',
+                      cursor: 'pointer',
+                      boxShadow: `0 2px 8px ${buttonColor}44`,
+                      width: submitBtnAlign === 'full' ? '100%' : 'auto',
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {submitBtnText}
+                  </button>
+                </div>
+
+                {showBtnConfig && (
+                  <div className="animate-slide-down" style={{ 
+                    padding: '1.25rem', 
+                    backgroundColor: '#f1f5f9', 
+                    borderRadius: 'var(--radius-md)', 
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem',
+                    marginBottom: '1rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '0.9rem' }}>Konfiguracja przycisku</strong>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowBtnConfig(false)}
+                        style={{ border: 'none', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                      >
+                        Zamknij ×
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Napis na przycisku</label>
+                        <input 
+                          type="text"
+                          value={submitBtnText}
+                          onChange={(e) => setSubmitBtnText(e.target.value)}
+                          placeholder="Wyślij odpowiedź"
+                          className="input"
+                          style={{ fontSize: '0.9rem', padding: '0.45rem 0.6rem', backgroundColor: '#fff' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Rozmiar</label>
+                          <select
+                            value={submitBtnSize}
+                            onChange={(e) => setSubmitBtnSize(e.target.value as any)}
+                            className="input"
+                            style={{ fontSize: '0.9rem', padding: '0.45rem 0.6rem', backgroundColor: '#fff' }}
+                          >
+                            <option value="small">Mały</option>
+                            <option value="medium">Średni</option>
+                            <option value="large">Duży</option>
+                          </select>
+                        </div>
+
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Układ / Wyrównanie</label>
+                          <select
+                            value={submitBtnAlign}
+                            onChange={(e) => setSubmitBtnAlign(e.target.value as any)}
+                            className="input"
+                            style={{ fontSize: '0.9rem', padding: '0.45rem 0.6rem', backgroundColor: '#fff' }}
+                          >
+                            <option value="left">Do lewej</option>
+                            <option value="center">Do środka</option>
+                            <option value="right">Do prawej</option>
+                            <option value="full">Pełna szerokość</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

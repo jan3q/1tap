@@ -21,7 +21,7 @@ export default function SurveyClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -87,6 +87,12 @@ export default function SurveyClient({
   };
 
   useEffect(() => {
+    const autoAdvance = (currentIdx: number) => {
+      setTimeout(() => {
+        focusQuestion(currentIdx + 1);
+      }, 300);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (submitted || isSubmitting) return;
 
@@ -120,6 +126,9 @@ export default function SurveyClient({
         if (q.type === 'radio' && q.options && numKey <= q.options.length) {
           e.preventDefault();
           handleInput(q.id, q.options[numKey - 1]);
+          if (focusedIndex !== null) {
+            autoAdvance(focusedIndex);
+          }
         } else if (q.type === 'checkbox' && q.options && numKey <= q.options.length) {
           e.preventDefault();
           const opt = q.options[numKey - 1];
@@ -131,6 +140,9 @@ export default function SurveyClient({
         } else if (q.type === 'scale') {
           e.preventDefault();
           handleInput(q.id, numKey.toString());
+          if (focusedIndex !== null) {
+            autoAdvance(focusedIndex);
+          }
         }
         return;
       }
@@ -149,6 +161,9 @@ export default function SurveyClient({
         } else if (q.type === 'radio' && q.options && q.options.length > 0) {
           e.preventDefault();
           handleInput(q.id, q.options[0]);
+          if (focusedIndex !== null) {
+            autoAdvance(focusedIndex);
+          }
         }
       }
     };
@@ -166,7 +181,28 @@ export default function SurveyClient({
   }
 
   const isDark = schema.theme === 'dark';
-  const btn = schema.buttonColor || '#000000';
+  let btn = schema.buttonColor || '#000000';
+  if (isDark && btn === '#000000') {
+    btn = '#ffffff';
+  }
+
+  const isColorLight = (hex: string) => {
+    const cleanHex = hex.replace('#', '');
+    if (cleanHex.length === 3) {
+      const r = parseInt(cleanHex[0] + cleanHex[0], 16);
+      const g = parseInt(cleanHex[1] + cleanHex[1], 16);
+      const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+      return (r * 299 + g * 587 + b * 114) / 1000 >= 160;
+    }
+    if (cleanHex.length === 6) {
+      const r = parseInt(cleanHex.substring(0, 2), 16);
+      const g = parseInt(cleanHex.substring(2, 4), 16);
+      const b = parseInt(cleanHex.substring(4, 6), 16);
+      return (r * 299 + g * 587 + b * 114) / 1000 >= 160;
+    }
+    return false;
+  };
+
   const themeStyle: React.CSSProperties = isDark
     ? ({
         '--bg-color': '#0f172a',
@@ -188,7 +224,7 @@ export default function SurveyClient({
         '--primary-hover': btn,
       } as React.CSSProperties);
 
-  const lightTextOnBtn = !['#eab308', '#22c55e', '#f97316'].includes(btn.toLowerCase());
+  const lightTextOnBtn = !isColorLight(btn);
 
   if (alreadyCompleted) {
     return (
@@ -347,7 +383,12 @@ export default function SurveyClient({
                         name={q.id}
                         required={q.required && !q.customAnswer}
                         checked={answers[q.id] === opt}
-                        onChange={() => handleInput(q.id, opt)}
+                        onChange={() => {
+                          handleInput(q.id, opt);
+                          setTimeout(() => {
+                            focusQuestion(inputIdx + 1);
+                          }, 300);
+                        }}
                         style={{ display: 'none' }}
                       />
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -448,7 +489,12 @@ export default function SurveyClient({
                         name={q.id}
                         required={q.required}
                         checked={answers[q.id] === num.toString()}
-                        onChange={() => handleInput(q.id, num.toString())}
+                        onChange={() => {
+                          handleInput(q.id, num.toString());
+                          setTimeout(() => {
+                            focusQuestion(inputIdx + 1);
+                          }, 300);
+                        }}
                         style={{ display: 'none' }}
                       />
                       <div style={{
@@ -475,26 +521,74 @@ export default function SurveyClient({
             </div>
           );})}
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{
-                padding: '1rem 2rem',
-                fontSize: '1.1rem',
-                marginTop: '1rem',
-                alignSelf: 'flex-start',
-                backgroundColor: btn,
-                color: lightTextOnBtn ? '#fff' : '#1a1a1a',
-              }}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Wysyłanie...' : 'Wyślij odpowiedź'}
-            </button>
-            <span style={{ alignSelf: 'flex-end', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '1rem 0' }}>
-              lub naciśnij Enter ⌨
-            </span>
-          </div>
+          {(() => {
+            const align = schema.submitBtnAlign || 'right';
+            const size = schema.submitBtnSize || 'medium';
+            const btnText = schema.submitBtnText || 'Wyślij odpowiedź';
+
+            let padding = '0.85rem 1.75rem';
+            let fontSize = '1.05rem';
+            if (size === 'small') {
+              padding = '0.5rem 1rem';
+              fontSize = '0.9rem';
+            } else if (size === 'large') {
+              padding = '1.25rem 2.5rem';
+              fontSize = '1.2rem';
+            }
+
+            const wrapperStyle: React.CSSProperties = {
+              display: 'flex',
+              gap: '0.75rem',
+              marginTop: '1.5rem',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              width: '100%',
+            };
+
+            const helperStyle: React.CSSProperties = {
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+              padding: '0.5rem 0',
+            };
+
+            if (align === 'left') {
+              wrapperStyle.justifyContent = 'flex-start';
+            } else if (align === 'center') {
+              wrapperStyle.justifyContent = 'center';
+            } else if (align === 'right') {
+              wrapperStyle.justifyContent = 'flex-end';
+              wrapperStyle.flexDirection = 'row-reverse';
+            } else if (align === 'full') {
+              wrapperStyle.flexDirection = 'column';
+              wrapperStyle.alignItems = 'stretch';
+              helperStyle.textAlign = 'center';
+            }
+
+            return (
+              <div style={wrapperStyle}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    padding,
+                    fontSize,
+                    backgroundColor: btn,
+                    color: lightTextOnBtn ? '#fff' : '#1a1a1a',
+                    width: align === 'full' ? '100%' : 'auto',
+                    border: btn.toLowerCase() === '#ffffff' ? '1px solid #ccc' : 'none',
+                    transition: 'all 0.2s',
+                    boxShadow: `0 2px 6px ${btn}44`,
+                  }}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Wysyłanie...' : btnText}
+                </button>
+                <span style={helperStyle}>
+                  lub naciśnij Enter ⌨
+                </span>
+              </div>
+            );
+          })()}
         </form>
       )}
     </div>
