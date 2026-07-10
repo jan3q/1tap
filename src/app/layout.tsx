@@ -3,6 +3,7 @@ import './globals.css'
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LogOut } from 'lucide-react'
+import { getSystemSetting } from '@/lib/db'
 
 export const metadata: Metadata = {
   title: '1tap - Kreator Ankiet',
@@ -24,12 +25,14 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const token = cookieStore.get('auth_token')?.value
   const adminPassword = process.env.ADMIN_PASSWORD
+  const savedToken = getSystemSetting('session_token')
+  const activeToken = savedToken || adminPassword
 
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
 
   const isSurveyPage = pathname.startsWith('/s/')
-  const showLogout = !!adminPassword && token === adminPassword && !isSurveyPage && pathname !== '/login'
+  const showLogout = !!activeToken && token === activeToken && !isSurveyPage && pathname !== '/login'
 
   return (
     <html lang="pl">
@@ -41,7 +44,6 @@ export default async function RootLayout({
                 1tap.
               </a>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>v1.0.0</span>
                 {showLogout && (
                   <form action={logoutAction}>
                     <button type="submit" style={{

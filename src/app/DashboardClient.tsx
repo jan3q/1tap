@@ -248,7 +248,7 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
             marginBottom: '-0.6rem'
           }}
         >
-          Bezpieczeństwo i 2FA
+          Ustawienia
         </button>
       </div>
 
@@ -384,24 +384,6 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div className="card">
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '2rem' }}>🛡️</span>
-              <div>
-                <h3 className="h2" style={{ margin: 0, fontSize: '1.25rem', marginBottom: '0.5rem' }}>Limit prób logowania i ochrona przed botami</h3>
-                <p className="p-muted" style={{ marginBottom: '1rem', fontSize: '0.95rem' }}>
-                  W celu ochrony panelu przed atakami typu brute-force oraz podejrzanymi botami, wdrożono automatyczną blokadę prób logowania.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                  <div>• <strong>Limit prób:</strong> Maksymalnie 5 nieudanych prób logowania pod rząd.</div>
-                  <div>• <strong>Czas blokady:</strong> Po przekroczeniu limitu logowanie zostaje zablokowane na 15 minut.</div>
-                  <div>• <strong>Opóźnienie odpowiedzi:</strong> Błędne wpisanie hasła powoduje sztuczne opóźnienie o 1 sekundę w celu spowolnienia skryptów brute-force.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '2rem' }}>👤</span>
               <div style={{ flex: 1 }}>
                 <h3 className="h2" style={{ margin: 0, fontSize: '1.25rem', marginBottom: '0.5rem' }}>Dane logowania administratora</h3>
                 <p className="p-muted" style={{ marginBottom: '1.5rem', fontSize: '0.95rem' }}>
@@ -492,7 +474,6 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
 
           <div className="card">
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '2rem' }}>🔑</span>
               <div style={{ flex: 1 }}>
                 <h3 className="h2" style={{ margin: 0, fontSize: '1.25rem', marginBottom: '0.5rem' }}>Weryfikacja dwuskładnikowa (2FA)</h3>
                 <p className="p-muted" style={{ marginBottom: '1.5rem', fontSize: '0.95rem' }}>
@@ -504,7 +485,7 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
                 ) : is2faEnabled ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#16a34a', fontWeight: 600 }}>
-                      ✅ Dwuskładnikowe uwierzytelnianie (2FA) jest aktualnie WŁĄCZONE.
+                      Dwuskładnikowe uwierzytelnianie (2FA) jest aktualnie WŁĄCZONE.
                     </div>
                     <button
                       type="button"
@@ -522,7 +503,7 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#d97706', fontWeight: 600 }}>
-                      ⚠️ Dwuskładnikowe uwierzytelnianie (2FA) jest aktualnie WYŁĄCZONE.
+                      Dwuskładnikowe uwierzytelnianie (2FA) jest aktualnie WYŁĄCZONE.
                     </div>
                     
                     {setupStep === 'idle' && (
