@@ -164,6 +164,31 @@ export default function SurveyClient({
     );
   }
 
+  const isDark = schema.theme === 'dark';
+  const btn = schema.buttonColor || '#000000';
+  const themeStyle: React.CSSProperties = isDark
+    ? ({
+        '--bg-color': '#0f172a',
+        '--text-color': '#e5e7eb',
+        '--text-muted': '#94a3b8',
+        '--border-color': '#1e293b',
+        '--card-bg': '#1e293b',
+        '--primary-color': btn,
+        '--primary-hover': btn,
+        '--shadow-sm': '0 1px 2px 0 rgb(0 0 0 / 0.4)',
+        '--shadow-md': '0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5)',
+        '--shadow-lg': '0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5)',
+        backgroundColor: '#0f172a',
+        color: '#e5e7eb',
+        minHeight: '100vh',
+      } as React.CSSProperties)
+    : ({
+        '--primary-color': btn,
+        '--primary-hover': btn,
+      } as React.CSSProperties);
+
+  const lightTextOnBtn = !['#eab308', '#22c55e', '#f97316'].includes(btn.toLowerCase());
+
   if (alreadyCompleted) {
     return (
       <div className="animate-fade-in" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
@@ -223,7 +248,7 @@ export default function SurveyClient({
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in" style={themeStyle}>
       {schema.header && (
         <h1 className="h1" style={{ marginBottom: '0.5rem' }} dangerouslySetInnerHTML={{ __html: schema.header }} />
       )}
@@ -231,7 +256,7 @@ export default function SurveyClient({
         <p className="p-muted" style={{ marginBottom: '2rem', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: schema.description }} />
       )}
       
-      <div style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: '#f5f5f5', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#333', border: '1px solid #e0e0e0' }}>
+      <div style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: isDark ? '#0f172a' : '#f5f5f5', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: isDark ? '#cbd5e1' : '#333', border: `1px solid ${isDark ? '#1e293b' : '#e0e0e0'}` }}>
         <strong>Szybkie wypełnianie:</strong> strzałki ↑↓ nawigacja · spacja zaznacz · 1-9 wybór opcji · Enter wyślij
       </div>
 
@@ -315,9 +340,9 @@ export default function SurveyClient({
               {q.type === 'radio' && q.options && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {q.options.map((opt, i) => (
-                    <label key={i} className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', transition: 'all 0.2s', borderColor: answers[q.id] === opt ? 'var(--text-color)' : 'var(--border-color)', backgroundColor: answers[q.id] === opt ? '#f9fafb' : 'white' }}>
-                      <input 
-                        type="radio" 
+                    <label key={i} className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', transition: 'all 0.2s', borderColor: answers[q.id] === opt ? 'var(--text-color)' : 'var(--border-color)', backgroundColor: answers[q.id] === opt ? (isDark ? '#334155' : '#f9fafb') : 'var(--card-bg)' }}>
+                      <input
+                        type="radio"
                         name={q.id}
                         required={q.required && !q.customAnswer}
                         checked={answers[q.id] === opt}
@@ -334,7 +359,7 @@ export default function SurveyClient({
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: 'white',
+                          backgroundColor: 'var(--card-bg)',
                           flexShrink: 0
                         }}>
                           {answers[q.id] === opt && <div style={{ width: 8, height: 8, borderRadius: 8, backgroundColor: 'var(--text-color)' }} />}
@@ -365,13 +390,13 @@ export default function SurveyClient({
                   {q.options.map((opt, i) => {
                     const isChecked = (answers[q.id] || []).includes(opt);
                     return (
-                      <label key={i} className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', transition: 'all 0.2s', borderColor: isChecked ? 'var(--text-color)' : 'var(--border-color)', backgroundColor: isChecked ? '#f9fafb' : 'white' }}>
-                        <input 
-                          type="checkbox" 
+                      <label key={i} className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', transition: 'all 0.2s', borderColor: isChecked ? 'var(--text-color)' : 'var(--border-color)', backgroundColor: isChecked ? (isDark ? '#334155' : '#f9fafb') : 'var(--card-bg)' }}>
+                        <input
+                          type="checkbox"
                           checked={isChecked}
                           onChange={(e) => {
                             const current = answers[q.id] || [];
-                            const newVal = e.target.checked 
+                            const newVal = e.target.checked
                               ? [...current, opt]
                               : current.filter((v: string) => v !== opt);
                             handleInput(q.id, newVal);
@@ -388,7 +413,7 @@ export default function SurveyClient({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: 'white',
+                            backgroundColor: 'var(--card-bg)',
                             flexShrink: 0
                           }}>
                             {isChecked && <div style={{ width: 8, height: 8, backgroundColor: 'var(--text-color)' }} />}
@@ -433,8 +458,8 @@ export default function SurveyClient({
                         justifyContent: 'center', 
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border-color)',
-                        backgroundColor: answers[q.id] === num.toString() ? 'var(--primary-color)' : 'white',
-                        color: answers[q.id] === num.toString() ? 'white' : 'var(--text-color)',
+                        backgroundColor: answers[q.id] === num.toString() ? 'var(--primary-color)' : 'var(--card-bg)',
+                        color: answers[q.id] === num.toString() ? (lightTextOnBtn ? '#fff' : '#1a1a1a') : 'var(--text-color)',
                         fontWeight: answers[q.id] === num.toString() ? 600 : 400,
                         transition: 'all 0.2s'
                       }}>
@@ -449,10 +474,17 @@ export default function SurveyClient({
           );})}
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              style={{ padding: '1rem 2rem', fontSize: '1.1rem', marginTop: '1rem', alignSelf: 'flex-start' }}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{
+                padding: '1rem 2rem',
+                fontSize: '1.1rem',
+                marginTop: '1rem',
+                alignSelf: 'flex-start',
+                backgroundColor: btn,
+                color: lightTextOnBtn ? '#fff' : '#1a1a1a',
+              }}
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Wysyłanie...' : 'Wyślij odpowiedź'}

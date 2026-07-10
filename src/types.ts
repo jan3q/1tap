@@ -10,6 +10,7 @@ export interface Question {
   scaleMin?: number;
   scaleMax?: number;
   description?: string; // objaśnienie pod pytaniem lub podtytuł dla nagłówka
+  colorTag?: string; // ręcznie przypisany kolor powiązania (hex), widoczny gdy włączono "Samodzielne powiązanie"
   logic?: {
     strategy: 'all' | 'any';
     conditions: {
@@ -25,6 +26,8 @@ export interface SurveySchema {
   header?: string;
   description?: string;
   questions: Question[];
+  theme?: 'light' | 'dark'; // motyw strony publicznej ankiety
+  buttonColor?: string; // kolor przycisków na stronie publicznej ankiety (hex)
 }
 
 export interface Survey {

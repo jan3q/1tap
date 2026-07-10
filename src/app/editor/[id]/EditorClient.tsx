@@ -2,11 +2,21 @@
 
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Survey, SurveySchema, Question, QuestionType } from '@/types';
-import { updateSurveySchema } from '@/app/actions';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, Check } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RichTextField } from './RichTextField';
+
+const MANUAL_COLORS: { name: string; hex: string }[] = [
+  { name: 'Niebieski', hex: '#3b82f6' },
+  { name: 'Fioletowy', hex: '#a855f7' },
+  { name: 'Żółty', hex: '#eab308' },
+  { name: 'Pomarańczowy', hex: '#f97316' },
+  { name: 'Czerwony', hex: '#ef4444' },
+  { name: 'Czarny', hex: '#1a1a1a' },
+  { name: 'Zielony', hex: '#22c55e' },
+];
 
 function Switch({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
@@ -78,11 +88,15 @@ export default function EditorClient({
   });
   const [redirectUrl, setRedirectUrl] = useState(initialSurvey.redirect_url || '');
   const [webhookUrl, setWebhookUrl] = useState(initialSurvey.webhook_url || '');
+  const [theme, setTheme] = useState<'light' | 'dark'>(initialSurvey.schema.theme || 'light');
+  const [buttonColor, setButtonColor] = useState(initialSurvey.schema.buttonColor || '#000000');
+  const [manualConnections, setManualConnections] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'settings' | 'results'>(initialTab);
   const [resultsSubTab, setResultsSubTab] = useState<'summary' | 'responses'>('summary');
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
+  const router = useRouter();
   const [showConnections, setShowConnections] = useState(false);
   const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
   const [focusedQuestionId, setFocusedQuestionId] = useState<string | null>(null);
@@ -105,7 +119,9 @@ export default function EditorClient({
   ], []);
 
   const questionGroups = useMemo(() => {
-    if (!showConnections) return new Map<string, number[]>();
+    // Automatyczne powiązania (z logiki warunkowej) widoczne tylko gdy
+    // włączono "Pokaż powiązania" oraz wyłączono tryb samodzielny.
+    if (!showConnections || manualConnections) return new Map<string, number[]>();
     const groups = new Map<string, number[]>();
     let groupIdx = 0;
 
@@ -126,7 +142,9 @@ export default function EditorClient({
     });
 
     return groups;
-  }, [questions, showConnections]);
+  }, [questions, showConnections, manualConnections]);
+
+  const manualColorActive = showConnections && manualConnections;
 
   if (!mounted) {
     return (
@@ -151,10 +169,23 @@ export default function EditorClient({
   const handleSave = () => {
     startTransition(async () => {
       try {
-        await updateSurveySchema(initialSurvey.id, { questions }, title, redirectUrl || null, webhookUrl || null, description || null);
-        setSaved(true);
-        addToast('Ustawienia i struktura ankiety zostały pomyślnie zapisane!', 'success');
-        setTimeout(() => setSaved(false), 2000);
+        const schema = { questions, theme, buttonColor };
+        const res = await fetch(`/api/surveys/${initialSurvey.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schema, title, redirectUrl: redirectUrl || null, webhookUrl: webhookUrl || null, description: description || null }),
+        });
+        let data: { success?: boolean; error?: string } | null = null;
+        try { data = await res.json(); } catch { /* nie-JSON */ }
+
+        if (res.ok && data?.success) {
+          setSaved(true);
+          addToast('Ustawienia i struktura ankiety zostały pomyślnie zapisane!', 'success');
+          setTimeout(() => setSaved(false), 2000);
+          router.refresh();
+        } else {
+          addToast(`Błąd zapisu: ${(data && data.error) || `HTTP ${res.status}`}`, 'error');
+        }
       } catch (err) {
         addToast(`Błąd zapisu: ${(err as Error).message}`, 'error');
       }
@@ -337,6 +368,7 @@ export default function EditorClient({
               const boxShadowStyle = isConnected && groups
                 ? groups.map((gIdx, gi) => `0 0 0 ${(gi + 1) * 3}px ${CONNECTION_COLORS[gIdx % CONNECTION_COLORS.length]}`).join(', ')
                 : undefined;
+              const manualColor = manualColorActive ? q.colorTag : undefined;
               return (
               <div key={q.id} className="card animate-slide-down" style={{ 
                 display: 'flex', gap: '1rem', position: 'relative',
@@ -345,12 +377,19 @@ export default function EditorClient({
                   backgroundColor: `${firstColor}0D`,
                   boxShadow: boxShadowStyle,
                 } : {}),
+                ...(manualColor ? {
+                  border: 'none',
+                  boxShadow: `0 0 0 3px ${manualColor}`,
+                  backgroundColor: `${manualColor}0D`,
+                } : {}),
                 ...(focusedQuestionId === q.id ? {
-                  border: isConnected ? 'none' : '1px solid #333',
+                  border: (isConnected || manualColor) ? 'none' : '1px solid #333',
                   boxShadow: isConnected 
                     ? `${boxShadowStyle}, 0 0 0 1px #333 inset` 
-                    : '0 0 0 1px #333',
-                  backgroundColor: isConnected ? `${firstColor}0D` : '#f0f0f3',
+                    : manualColor
+                      ? `0 0 0 3px ${manualColor}, 0 0 0 1px #333 inset`
+                      : '0 0 0 1px #333',
+                  backgroundColor: isConnected ? `${firstColor}0D` : manualColor ? `${manualColor}0D` : '#f0f0f3',
                 } : {}),
               }}
               onClick={() => setFocusedQuestionId(q.id)}
@@ -366,7 +405,48 @@ export default function EditorClient({
                     <ArrowDown size={20} />
                   </button>
                 </div>
-                
+
+                {manualColorActive && (
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'center', justifyContent: 'flex-start', paddingTop: '0.15rem' }}
+                    title="Kolory powiązania"
+                  >
+                    {MANUAL_COLORS.map(c => {
+                      const isActive = (q.colorTag || '') === c.hex;
+                      return (
+                        <button
+                          key={c.hex}
+                          type="button"
+                          onClick={() => updateQuestion(q.id, isActive ? { colorTag: undefined } : { colorTag: c.hex })}
+                          title={`${c.name}${isActive ? ' (kliknij aby odznaczyć)' : ''}`}
+                          aria-label={`${c.name}${isActive ? ' — zaznaczony' : ''}`}
+                          aria-pressed={isActive}
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '50%',
+                            border: isActive ? '2px solid var(--text-color)' : '2px solid rgba(0,0,0,0.15)',
+                            backgroundColor: c.hex,
+                            cursor: 'pointer',
+                            padding: 0,
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: isActive ? `0 0 0 2px #fff, 0 0 0 4px ${c.hex}` : 'none',
+                            transition: 'box-shadow 0.15s ease, transform 0.1s ease',
+                            transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                          }}
+                        >
+                          {isActive && (
+                            <Check size={14} color={c.hex === '#eab308' || c.hex === '#22c55e' ? '#1a1a1a' : '#fff'} strokeWidth={3} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -768,24 +848,149 @@ export default function EditorClient({
             border: '2px solid #3b82f6',
             borderRadius: 'var(--radius-lg)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
             gap: '1rem',
             boxShadow: '0 4px 14px rgba(59,130,246,0.15)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.1rem' }}>🔗</span>
-              <div>
-                <strong style={{ fontSize: '1rem', color: '#1e40af' }}>Pokaż powiązania</strong>
-                <p style={{ fontSize: '0.8rem', color: '#3b82f6', margin: 0 }}>Pola połączone logiką warunkową zostaną podświetlone tym samym kolorem</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.1rem' }}>🔗</span>
+                <div>
+                  <strong style={{ fontSize: '1rem', color: '#1e40af' }}>Pokaż powiązania</strong>
+                  <p style={{ fontSize: '0.8rem', color: '#3b82f6', margin: 0 }}>Pola połączone logiką warunkową zostaną podświetlone tym samym kolorem</p>
+                </div>
               </div>
+              <Switch checked={showConnections} onChange={(v) => { setShowConnections(v); if (!v) setManualConnections(false); }} />
             </div>
-            <Switch checked={showConnections} onChange={setShowConnections} />
+
+            {showConnections && (
+              <div style={{
+                borderTop: '1px dashed #93c5fd',
+                paddingTop: '0.75rem',
+                marginTop: '0.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                paddingLeft: '0.25rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '0.95rem' }}>🎨</span>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem', color: '#1e40af' }}>Samodzielne powiązanie</strong>
+                    <p style={{ fontSize: '0.78rem', color: '#3b82f6', margin: 0 }}>
+                      Automatyczne oznaczenia znikają. Klikaj kolory po lewej stronie pytania, aby nadać mu kolor ramki (ponowne kliknięcie odznacza).
+                    </p>
+                    {manualConnections && (
+                      <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.45rem', alignItems: 'center' }}>
+                        {MANUAL_COLORS.map(c => (
+                          <span key={c.hex} title={c.name} style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: c.hex, border: '1px solid rgba(0,0,0,0.2)', display: 'inline-block' }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Switch checked={manualConnections} onChange={setManualConnections} />
+              </div>
+            )}
           </div>
         </>
       ) : activeTab === 'settings' ? (
         <div className="card animate-slide-down" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', padding: '2rem' }}>
           <div>
+            <h3 className="h2" style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Motyw i wygląd</h3>
+            <p className="p-muted" style={{ marginBottom: '1rem' }}>Dostosuj wygląd publicznej strony ankiety. Zmiany zapisz przyciskiem „Zapisz&quot;.</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Motyw</label>
+                <div style={{ display: 'inline-flex', gap: '2px', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('light')}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      backgroundColor: theme === 'light' ? '#fff' : 'transparent',
+                      color: theme === 'light' ? 'var(--text-color)' : 'var(--text-muted)',
+                      boxShadow: theme === 'light' ? 'var(--shadow-sm)' : 'none',
+                    }}
+                  >
+                    ☀️ Jasny
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('dark')}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      backgroundColor: theme === 'dark' ? '#1e293b' : 'transparent',
+                      color: theme === 'dark' ? '#e5e7eb' : 'var(--text-muted)',
+                      boxShadow: theme === 'dark' ? 'var(--shadow-sm)' : 'none',
+                    }}
+                  >
+                    🌙 Ciemny
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Kolor przycisków</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    type="color"
+                    value={buttonColor}
+                    onChange={(e) => setButtonColor(e.target.value)}
+                    style={{ width: '42px', height: '42px', padding: 0, border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', backgroundColor: 'transparent' }}
+                    aria-label="Wybierz kolor przycisków"
+                  />
+                  <input
+                    type="text"
+                    value={buttonColor}
+                    onChange={(e) => setButtonColor(e.target.value)}
+                    className="input"
+                    style={{ width: '110px', padding: '0.45rem 0.6rem', fontSize: '0.9rem', textTransform: 'uppercase' }}
+                  />
+                  <span
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0.5rem 1.25rem', borderRadius: 'var(--radius-md)',
+                      backgroundColor: buttonColor, color: ['#eab308', '#22c55e', '#f97316'].includes(buttonColor.toLowerCase()) ? '#1a1a1a' : '#fff',
+                      fontWeight: 600, fontSize: '0.9rem', boxShadow: `0 2px 6px ${buttonColor}55`,
+                    }}
+                  >
+                    Podgląd przycisku
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Szybki wybór:</span>
+                  {['#000000', '#3b82f6', '#a855f7', '#ef4444', '#22c55e', '#f97316', '#eab308'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setButtonColor(c)}
+                      aria-label={`Ustaw kolor ${c}`}
+                      style={{
+                        width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c,
+                        border: buttonColor.toLowerCase() === c ? '2px solid var(--text-color)' : '2px solid rgba(0,0,0,0.15)',
+                        cursor: 'pointer', padding: 0,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
             <h3 className="h2" style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Opis ankiety</h3>
             <p className="p-muted" style={{ marginBottom: '1rem' }}>Opcjonalny opis ułatwiający wyszukiwanie i organizację ankiet.</p>
             <textarea
