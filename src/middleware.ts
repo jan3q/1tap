@@ -23,10 +23,10 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const activeSessionToken = process.env.ADMIN_SESSION_TOKEN;
   
   // Jeśli hasło administratora nie jest ustawione w .env, to cała aplikacja jest otwarta dla łatwości lokalnego uruchamiania
-  if (!adminPassword) {
+  if (!activeSessionToken && !process.env.ADMIN_PASSWORD) {
     return NextResponse.next({
       request: {
         headers: requestHeaders,
@@ -37,7 +37,7 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
 
   // Weryfikacja tokena sesyjnego
-  if (token !== adminPassword) {
+  if (token !== activeSessionToken) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', path);
     return NextResponse.redirect(loginUrl);

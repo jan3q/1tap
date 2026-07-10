@@ -42,6 +42,11 @@ const initDb = () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
   `);
 
   // Migracja: dodaj kolumnę description, jeśli brakuje (dla istniejących baz)
@@ -52,5 +57,33 @@ const initDb = () => {
 };
 
 initDb();
+
+export function getSystemSetting(key: string): string | null {
+  const row = db.prepare('SELECT value FROM system_settings WHERE key = ?').get(key) as { value: string } | undefined;
+  return row ? row.value : null;
+}
+
+export function setSystemSetting(key: string, value: string | null) {
+  if (value === null) {
+    db.prepare('DELETE FROM system_settings WHERE key = ?').run(key);
+  } else {
+    db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run(key, value);
+  }
+}
+
+// Inicjalizacja tokena sesyjnego z bazy przy uruchomieniu aplikacji (dla Next middleware)
+const initSessionToken = () => {
+  try {
+    const row = db.prepare('SELECT value FROM system_settings WHERE key = ?').get('session_token') as { value: string } | undefined;
+    if (row && row.value) {
+      process.env.ADMIN_SESSION_TOKEN = row.value;
+    } else {
+      process.env.ADMIN_SESSION_TOKEN = process.env.ADMIN_PASSWORD || 'admin';
+    }
+  } catch {
+    process.env.ADMIN_SESSION_TOKEN = process.env.ADMIN_PASSWORD || 'admin';
+  }
+};
+initSessionToken();
 
 export default db;

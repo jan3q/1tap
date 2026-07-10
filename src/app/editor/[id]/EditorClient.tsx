@@ -94,6 +94,7 @@ export default function EditorClient({
   const [submitBtnText, setSubmitBtnText] = useState(initialSurvey.schema.submitBtnText || 'Wyślij odpowiedź');
   const [submitBtnSize, setSubmitBtnSize] = useState<'small' | 'medium' | 'large'>(initialSurvey.schema.submitBtnSize || 'medium');
   const [submitBtnAlign, setSubmitBtnAlign] = useState<'left' | 'right' | 'center' | 'full'>(initialSurvey.schema.submitBtnAlign || 'right');
+  const [emailNotifications, setEmailNotifications] = useState<boolean>(initialSurvey.schema.emailNotifications || false);
   const [showBtnConfig, setShowBtnConfig] = useState(false);
   const [manualConnections, setManualConnections] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'settings' | 'results'>(initialTab);
@@ -180,7 +181,8 @@ export default function EditorClient({
           buttonColor,
           submitBtnText,
           submitBtnSize,
-          submitBtnAlign
+          submitBtnAlign,
+          emailNotifications
         };
         const res = await fetch(`/api/surveys/${initialSurvey.id}`, {
           method: 'PUT',
@@ -1206,6 +1208,45 @@ export default function EditorClient({
               placeholder="https://twojserwer.pl/api/webhook"
               className="input"
             />
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 className="h2" style={{ fontSize: '1.25rem', margin: 0 }}>Powiadomienia e-mail</h3>
+                <p className="p-muted" style={{ marginTop: '0.25rem', marginBottom: 0 }}>Wyślij odpowiedzi na adres e-mail administratora po każdym wypełnieniu ankiety.</p>
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
+                <input 
+                  type="checkbox"
+                  checked={emailNotifications}
+                  onChange={(e) => setEmailNotifications(e.target.checked)}
+                  style={{
+                    appearance: 'none',
+                    width: '46px',
+                    height: '24px',
+                    backgroundColor: emailNotifications ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '9999px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{
+                  position: 'absolute',
+                  top: '3px',
+                  left: emailNotifications ? '25px' : '3px',
+                  width: '18px',
+                  height: '18px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '50%',
+                  transition: 'all 0.2s',
+                  pointerEvents: 'none'
+                }} />
+              </label>
+            </div>
           </div>
         </div>
       ) : (
