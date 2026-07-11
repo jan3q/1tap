@@ -429,11 +429,13 @@ export default function EditorClient({
                   backgroundColor: isConnected ? `${firstColor}0D` : manualColor ? `${manualColor}0D` : '#f0f0f3',
                 } : {}),
                 ...(q.hidden ? {
-                  opacity: 0.55,
-                  filter: 'grayscale(70%)',
-                  backgroundColor: '#f1f5f9',
-                  borderColor: '#cbd5e1',
+                  opacity: 0.45,
+                  filter: 'grayscale(100%)',
+                  backgroundColor: '#e4e4e7',
+                  borderColor: '#a1a1aa',
                   borderStyle: 'dashed',
+                  borderWidth: '2px',
+                  boxShadow: 'none',
                 } : {}),
               }}
               onClick={() => setFocusedQuestionId(q.id)}
