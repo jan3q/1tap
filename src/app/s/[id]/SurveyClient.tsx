@@ -147,6 +147,8 @@ export default function SurveyClient({
     return maxVis;
   }, [schema.questions]);
 
+  const finalMaxSteps = Math.max(maxSteps, inputableQuestions.length);
+
   const renderGDPR = () => {
     if (gdprQuestions.length === 0) return null;
     return (
@@ -156,7 +158,7 @@ export default function SurveyClient({
             <input
               type="checkbox"
               required={q.required}
-              checked={!!answers[q.id]}
+              checked={Array.isArray(answers[q.id]) ? answers[q.id].length > 0 : !!answers[q.id]}
               onChange={(e) => handleInput(q.id, e.target.checked ? ['Tak'] : [])}
               style={{ marginTop: '0.2rem', width: '1.2rem', height: '1.2rem', cursor: 'pointer', flexShrink: 0 }}
             />
@@ -524,11 +526,11 @@ export default function SurveyClient({
       {schema.oneQuestionPerPage && inputableQuestions.length > 0 && schema.showProgressBar !== false && (
         <div style={{ marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${isDark ? '#333' : '#eee'}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: isDark ? '#aaa' : '#666' }}>
-            <span>Krok {(focusedIndex || 0) + 1} z {maxSteps}</span>
-            <span>{Math.round((((focusedIndex || 0)) / maxSteps) * 100)}% ukończono</span>
+            <span>Krok {(focusedIndex || 0) + 1} z {finalMaxSteps}</span>
+            <span>{Math.round((((focusedIndex || 0)) / finalMaxSteps) * 100)}% ukończono</span>
           </div>
           <div style={{ height: '6px', backgroundColor: isDark ? '#333' : '#eee', borderRadius: '3px', overflow: 'hidden' }}>
-            <div style={{ width: `${(((focusedIndex || 0) + 1) / maxSteps) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
+            <div style={{ width: `${(((focusedIndex || 0) + 1) / finalMaxSteps) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
           </div>
         </div>
       )}
@@ -544,6 +546,7 @@ export default function SurveyClient({
             return (
               <div 
                 key={q.id} 
+                ref={(el) => { if (inputIdx !== -1) questionRefs.current[inputIdx] = el; }}
                 className="animate-slide-down" 
                 style={{ 
                   ...((isFocused && !schema.oneQuestionPerPage) ? { outline: `2px solid ${btn}`, outlineOffset: '8px', borderRadius: 'var(--radius-md)' } : {}),
@@ -559,7 +562,6 @@ export default function SurveyClient({
                   </div>
                 ) : (
                   <div 
-                    ref={(el) => { questionRefs.current[inputIdx] = el; }}
                     onClick={() => focusQuestion(inputIdx)}
                     style={{ cursor: 'pointer' }}
                   >
@@ -621,7 +623,7 @@ export default function SurveyClient({
                           handleInput(q.id, opt);
                           if (schema.oneQuestionPerPage) {
                             setTimeout(() => {
-                              if (inputIdx < inputableQuestions.length - 1) {
+                              if (inputIdx < inputableQuestionsRef.current.length - 1) {
                                 setFocusedIndex(inputIdx + 1);
                               }
                             }, 100);
@@ -763,7 +765,7 @@ export default function SurveyClient({
                           handleInput(q.id, num.toString());
                           if (schema.oneQuestionPerPage) {
                             setTimeout(() => {
-                              if (inputIdx < inputableQuestions.length - 1) {
+                              if (inputIdx < inputableQuestionsRef.current.length - 1) {
                                 setFocusedIndex(inputIdx + 1);
                               }
                             }, 100);
