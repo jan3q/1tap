@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { SurveySchema, Question } from '@/types';
 import { submitSurveyResponse } from '@/app/actions';
 import { getScaleValues } from '@/lib/utils';
@@ -905,6 +905,7 @@ export default function SurveyClient({
                   </>
                 )}
               </div>
+            </div>
             </>
           ) : (() => {
             const wrapperStyle: React.CSSProperties = {
