@@ -175,8 +175,10 @@ export default function SurveyClient({
               style={{ marginTop: '0.2rem', width: '1.2rem', height: '1.2rem', cursor: 'pointer', flexShrink: 0 }}
             />
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.25rem', color: isDark ? '#e2e8f0' : '#1e293b' }}>{q.title} {q.required && <span style={{ color: '#ef4444' }}>*</span>}</div>
-              {q.description && <div style={{ fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b', lineHeight: 1.5 }}>{q.description}</div>}
+              <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.25rem', color: isDark ? '#e2e8f0' : '#1e293b' }}>
+                <span dangerouslySetInnerHTML={{ __html: q.title || '' }} /> {q.required && <span style={{ color: '#ef4444' }}>*</span>}
+              </div>
+              {q.description && <div style={{ fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: q.description }} />}
             </div>
           </label>
         ))}

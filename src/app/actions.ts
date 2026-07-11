@@ -140,13 +140,15 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
             }
           }
           
-          const cleanLabel = (q.title || '')
-            .replace(/<[^>]*>/g, '') // Usuwa tagi HTML
+          const decodedLabel = (q.title || '')
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
+            .replace(/&quot;/g, '"');
+            
+          const cleanLabel = decodedLabel
+            .replace(/<[^>]*>/g, '') // Usuwa tagi HTML
             .trim();
 
           const shortId = q.id.replace(/-/g, '').slice(0, 10);
