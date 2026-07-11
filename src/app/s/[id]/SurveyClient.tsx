@@ -122,22 +122,24 @@ export default function SurveyClient({
   }, [focusedIndex, inputableQuestions]);
 
   useEffect(() => {
-    const autoAdvance = (currentIdx: number) => {
+    const autoAdvance = (currentIdx: number, forceValid: boolean = false) => {
       setTimeout(() => {
         if (schema.oneQuestionPerPage) {
-          // In oneQuestionPerPage mode, autoAdvance only if the question is valid.
-          const el = questionRefs.current[currentIdx];
-          if (el) {
-            const inputs = el.querySelectorAll('input, textarea, select');
-            let allValid = true;
-            for (let i = 0; i < inputs.length; i++) {
-              const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-              if (!input.checkValidity()) {
-                allValid = false;
-                break;
+          if (!forceValid) {
+            // In oneQuestionPerPage mode, autoAdvance only if the question is valid.
+            const el = questionRefs.current[currentIdx];
+            if (el) {
+              const inputs = el.querySelectorAll('input, textarea, select');
+              let allValid = true;
+              for (let i = 0; i < inputs.length; i++) {
+                const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+                if (!input.checkValidity()) {
+                  allValid = false;
+                  break;
+                }
               }
+              if (!allValid) return;
             }
-            if (!allValid) return;
           }
           if (currentIdx < inputableQuestions.length - 1) {
             setFocusedIndex(currentIdx + 1);
@@ -203,7 +205,7 @@ export default function SurveyClient({
             e.preventDefault();
             handleInput(q.id, q.options[numKey - 1]);
             if (focusedIndex !== null) {
-              autoAdvance(focusedIndex);
+              autoAdvance(focusedIndex, true);
             }
           } else if (q.type === 'checkbox' && q.options && numKey <= q.options.length) {
             e.preventDefault();
@@ -219,7 +221,7 @@ export default function SurveyClient({
             if (numKey <= scaleVals.length) {
               handleInput(q.id, scaleVals[numKey - 1].toString());
               if (focusedIndex !== null) {
-                autoAdvance(focusedIndex);
+                autoAdvance(focusedIndex, true);
               }
             }
           }
@@ -239,7 +241,7 @@ export default function SurveyClient({
             e.preventDefault();
             handleInput(q.id, q.options[0]);
             if (focusedIndex !== null) {
-              autoAdvance(focusedIndex);
+              autoAdvance(focusedIndex, true);
             }
           }
         }
@@ -414,13 +416,13 @@ export default function SurveyClient({
       )}
 
       {schema.oneQuestionPerPage && inputableQuestions.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            <span>Krok {(focusedIndex || 0) + 1} z {inputableQuestions.length}</span>
-            <span>{Math.round((((focusedIndex || 0)) / inputableQuestions.length) * 100)}% ukończono</span>
+        <div style={{ marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${isDark ? '#333' : '#eee'}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: isDark ? '#aaa' : '#666' }}>
+            <span>Krok {(focusedIndex || 0) + 1} z {schema.questions.filter(q => q.type !== 'header').length}</span>
+            <span>{Math.round((((focusedIndex || 0)) / schema.questions.filter(q => q.type !== 'header').length) * 100)}% ukończono</span>
           </div>
-          <div style={{ width: '100%', height: '6px', backgroundColor: isDark ? '#1e293b' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-            <div style={{ width: `${(((focusedIndex || 0) + 1) / inputableQuestions.length) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
+          <div style={{ height: '6px', backgroundColor: isDark ? '#333' : '#eee', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{ width: `${(((focusedIndex || 0) + 1) / schema.questions.filter(q => q.type !== 'header').length) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
           </div>
         </div>
       )}
@@ -438,7 +440,7 @@ export default function SurveyClient({
                 key={q.id} 
                 className="animate-slide-down" 
                 style={{ 
-                  ...((isFocused && !schema.oneQuestionPerPage) ? { outline: '1px solid #333', outlineOffset: '3px', borderRadius: 'var(--radius-md)' } : {}),
+                  ...((isFocused && !schema.oneQuestionPerPage) ? { outline: `2px solid ${btn}`, outlineOffset: '8px', borderRadius: 'var(--radius-md)' } : {}),
                   animationDelay: `${idx * 0.1}s` 
                 }}
               >
@@ -516,7 +518,7 @@ export default function SurveyClient({
                               if (inputIdx < inputableQuestions.length - 1) {
                                 setFocusedIndex(inputIdx + 1);
                               }
-                            }, 250);
+                            }, 100);
                           } else {
                             setTimeout(() => {
                               focusQuestion(inputIdx + 1);
@@ -658,7 +660,7 @@ export default function SurveyClient({
                               if (inputIdx < inputableQuestions.length - 1) {
                                 setFocusedIndex(inputIdx + 1);
                               }
-                            }, 250);
+                            }, 100);
                           } else {
                             setTimeout(() => {
                               focusQuestion(inputIdx + 1);
