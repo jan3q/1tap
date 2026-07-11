@@ -87,6 +87,8 @@ export default function SurveyClient({
           if (cond.fieldId && cond.value) {
             if (!conditionValues[cond.fieldId]) conditionValues[cond.fieldId] = new Set();
             conditionValues[cond.fieldId].add(cond.value);
+            if (cond.operator === 'greater') conditionValues[cond.fieldId].add(String(Number(cond.value) + 1));
+            if (cond.operator === 'less') conditionValues[cond.fieldId].add(String(Number(cond.value) - 1));
           }
         });
       }
@@ -95,18 +97,28 @@ export default function SurveyClient({
     if (Object.keys(conditionValues).length === 0) return questions.length;
 
     const fields = Object.keys(conditionValues);
-    const possibleAssignments: Record<string, string>[] = [];
+    const possibleAssignments: Record<string, string[]>[] = [];
 
-    const generateAssignments = (index: number, current: Record<string, string>) => {
+    const generateAssignments = (index: number, current: Record<string, string[]>) => {
+      if (possibleAssignments.length > 5000) return; // Safeguard against combinatorial explosion
       if (index === fields.length) {
         possibleAssignments.push({ ...current });
         return;
       }
       const field = fields[index];
       const values = Array.from(conditionValues[field]);
-      values.push('__fallback__');
-      values.forEach(val => {
-        current[field] = val;
+      
+      const subsets: string[][] = [[]];
+      for (const val of values) {
+        const len = subsets.length;
+        for (let i = 0; i < len; i++) {
+          if (subsets.length > 32) break; // limit subsets to max 32 combinations per field
+          subsets.push([...subsets[i], val]);
+        }
+      }
+      
+      subsets.forEach(subset => {
+        current[field] = subset.length > 0 ? subset : ['__fallback__'];
         generateAssignments(index + 1, current);
       });
     };
@@ -126,14 +138,14 @@ export default function SurveyClient({
           const { fieldId, operator, value } = cond;
           const answer = assignment[fieldId];
           switch (operator) {
-            case 'empty': return !answer || answer === '__fallback__';
-            case 'not-empty': return answer && answer !== '__fallback__';
-            case 'equals': return String(answer).toLowerCase() === String(value).toLowerCase();
-            case 'not-equals': return String(answer).toLowerCase() !== String(value).toLowerCase();
-            case 'contains': return String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
-            case 'not-contains': return !String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
-            case 'greater': return Number(answer || 0) > Number(value);
-            case 'less': return Number(answer || 0) < Number(value);
+            case 'empty': return !answer || answer[0] === '__fallback__';
+            case 'not-empty': return answer && answer[0] !== '__fallback__';
+            case 'equals': return answer.some(v => String(v).toLowerCase() === String(value).toLowerCase());
+            case 'not-equals': return !answer.some(v => String(v).toLowerCase() === String(value).toLowerCase());
+            case 'contains': return answer.some(v => String(v).toLowerCase().includes(String(value).toLowerCase()));
+            case 'not-contains': return !answer.some(v => String(v).toLowerCase().includes(String(value).toLowerCase()));
+            case 'greater': return answer.some(v => Number(v || 0) > Number(value));
+            case 'less': return answer.some(v => Number(v || 0) < Number(value));
             default: return true;
           }
         };

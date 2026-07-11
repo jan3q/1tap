@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Survey, SurveySchema, Question, QuestionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, Check, Shield } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, Check, Shield, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RichTextField } from './RichTextField';
@@ -258,6 +258,21 @@ export default function EditorClient({
 
   const removeQuestion = (id: string) => {
     setQuestions(questions.filter(q => q.id !== id));
+  };
+
+  const duplicateQuestion = (index: number) => {
+    const qToDuplicate = questions[index];
+    const newId = uuidv4();
+    const duplicatedQuestion = {
+      ...qToDuplicate,
+      id: newId,
+      title: qToDuplicate.title ? qToDuplicate.title + ' (kopia)' : '',
+      options: qToDuplicate.options ? [...qToDuplicate.options] : undefined,
+      logic: qToDuplicate.logic ? JSON.parse(JSON.stringify(qToDuplicate.logic)) : undefined
+    };
+    const newQ = [...questions];
+    newQ.splice(index + 1, 0, duplicatedQuestion);
+    setQuestions(newQ);
   };
 
   const moveUp = (index: number) => {
@@ -875,6 +890,9 @@ export default function EditorClient({
                         Wymagane
                       </label>
                     )}
+                    <button onClick={() => duplicateQuestion(i)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', marginRight: '0.5rem' }} title="Duplikuj">
+                      <Copy size={16} /> Duplikuj
+                    </button>
                     <button onClick={() => handleDeleteClick(q.id)} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }}>
                       <Trash2 size={16} /> {q.type === 'header' ? 'Usuń sekcję' : 'Usuń'}
                     </button>
