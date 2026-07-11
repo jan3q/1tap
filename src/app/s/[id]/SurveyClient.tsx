@@ -78,19 +78,74 @@ export default function SurveyClient({
   const inputableQuestions = visibleQuestions.filter(q => q.type !== 'header');
 
   const focusQuestion = (index: number) => {
-    if (index < 0 || index >= inputableQuestions.length) return;
+    if (index < 0) return;
     setFocusedIndex(index);
-    const el = questionRefs.current[index];
+    if (focusedIndex === index) {
+      const el = questionRefs.current[index];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
+
+  const handleNext = () => {
+    if (focusedIndex === null) return;
+    
+    // HTML5 validation check for the active question container
+    const el = questionRefs.current[focusedIndex];
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const inputs = el.querySelectorAll('input, textarea, select');
+      let allValid = true;
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+        if (!input.checkValidity()) {
+          input.reportValidity();
+          allValid = false;
+          break;
+        }
+      }
+      if (!allValid) return;
+    }
+    
+    if (focusedIndex < inputableQuestions.length - 1) {
+      setFocusedIndex(focusedIndex + 1);
     }
   };
 
   useEffect(() => {
+    if (focusedIndex !== null && focusedIndex < inputableQuestions.length) {
+      const el = questionRefs.current[focusedIndex];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [focusedIndex, inputableQuestions]);
+
+  useEffect(() => {
     const autoAdvance = (currentIdx: number) => {
       setTimeout(() => {
-        focusQuestion(currentIdx + 1);
-      }, 100);
+        if (schema.oneQuestionPerPage) {
+          // In oneQuestionPerPage mode, autoAdvance only if the question is valid.
+          const el = questionRefs.current[currentIdx];
+          if (el) {
+            const inputs = el.querySelectorAll('input, textarea, select');
+            let allValid = true;
+            for (let i = 0; i < inputs.length; i++) {
+              const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+              if (!input.checkValidity()) {
+                allValid = false;
+                break;
+              }
+            }
+            if (!allValid) return;
+          }
+          if (currentIdx < inputableQuestions.length - 1) {
+            setFocusedIndex(currentIdx + 1);
+          }
+        } else {
+          focusQuestion(currentIdx + 1);
+        }
+      }, 250);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -109,60 +164,83 @@ export default function SurveyClient({
         let next = focusedIndex !== null ? focusedIndex + dir : 0;
         if (next < 0) next = 0;
         if (next >= inputableQuestions.length) next = inputableQuestions.length - 1;
-        focusQuestion(next);
+        
+        if (schema.oneQuestionPerPage) {
+          if (dir === 1) {
+            handleNext();
+          } else {
+            setFocusedIndex(next);
+          }
+        } else {
+          focusQuestion(next);
+        }
         return;
       }
 
       if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        if (formRef.current) {
-          formRef.current.requestSubmit();
-        }
-        return;
-      }
-
-      const numKey = parseInt(e.key);
-      if (q && !isNaN(numKey) && numKey >= 1 && numKey <= 9) {
-        if (q.type === 'radio' && q.options && numKey <= q.options.length) {
-          e.preventDefault();
-          handleInput(q.id, q.options[numKey - 1]);
-          if (focusedIndex !== null) {
-            autoAdvance(focusedIndex);
+        if (schema.oneQuestionPerPage) {
+          if (focusedIndex !== null && focusedIndex < inputableQuestions.length - 1) {
+            handleNext();
+          } else {
+            if (formRef.current) {
+              formRef.current.requestSubmit();
+            }
           }
-        } else if (q.type === 'checkbox' && q.options && numKey <= q.options.length) {
-          e.preventDefault();
-          const opt = q.options[numKey - 1];
-          const current = answers[q.id] || [];
-          const newVal = current.includes(opt) 
-            ? current.filter((v: string) => v !== opt)
-            : [...current, opt];
-          handleInput(q.id, newVal);
-        } else if (q.type === 'scale') {
-          e.preventDefault();
-          handleInput(q.id, numKey.toString());
-          if (focusedIndex !== null) {
-            autoAdvance(focusedIndex);
+        } else {
+          if (formRef.current) {
+            formRef.current.requestSubmit();
           }
         }
         return;
       }
 
-      if (e.key === ' ' && q) {
-        if (q.type === 'checkbox' && q.options && focusedIndex === 0 && focusedIndex !== null) {
-          e.preventDefault();
-          const current = answers[q.id] || [];
-          if (q.options.length > 0) {
+      // Quick answer keys 1-9 & Space bar are ONLY allowed if oneQuestionPerPage is active
+      if (schema.oneQuestionPerPage) {
+        const numKey = parseInt(e.key);
+        if (q && !isNaN(numKey) && numKey >= 1 && numKey <= 9) {
+          if (q.type === 'radio' && q.options && numKey <= q.options.length) {
+            e.preventDefault();
+            handleInput(q.id, q.options[numKey - 1]);
+            if (focusedIndex !== null) {
+              autoAdvance(focusedIndex);
+            }
+          } else if (q.type === 'checkbox' && q.options && numKey <= q.options.length) {
+            e.preventDefault();
+            const opt = q.options[numKey - 1];
+            const current = answers[q.id] || [];
+            const newVal = current.includes(opt) 
+              ? current.filter((v: string) => v !== opt)
+              : [...current, opt];
+            handleInput(q.id, newVal);
+          } else if (q.type === 'scale') {
+            e.preventDefault();
+            const scaleVals = getScaleValues(q);
+            if (numKey <= scaleVals.length) {
+              handleInput(q.id, scaleVals[numKey - 1].toString());
+              if (focusedIndex !== null) {
+                autoAdvance(focusedIndex);
+              }
+            }
+          }
+          return;
+        }
+
+        if (e.key === ' ' && q) {
+          if (q.type === 'checkbox' && q.options && q.options.length > 0) {
+            e.preventDefault();
             const firstOpt = q.options[0];
+            const current = answers[q.id] || [];
             const newVal = current.includes(firstOpt)
               ? current.filter((v: string) => v !== firstOpt)
               : [...current, firstOpt];
             handleInput(q.id, newVal);
-          }
-        } else if (q.type === 'radio' && q.options && q.options.length > 0) {
-          e.preventDefault();
-          handleInput(q.id, q.options[0]);
-          if (focusedIndex !== null) {
-            autoAdvance(focusedIndex);
+          } else if (q.type === 'radio' && q.options && q.options.length > 0) {
+            e.preventDefault();
+            handleInput(q.id, q.options[0]);
+            if (focusedIndex !== null) {
+              autoAdvance(focusedIndex);
+            }
           }
         }
       }
@@ -170,7 +248,7 @@ export default function SurveyClient({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusedIndex, inputableQuestions, answers, submitted, isSubmitting]);
+  }, [focusedIndex, inputableQuestions, answers, submitted, isSubmitting, schema.oneQuestionPerPage]);
 
   if (!mounted) {
     return (
@@ -275,6 +353,39 @@ export default function SurveyClient({
     setAnswers(prev => ({ ...prev, [id]: value }));
   };
 
+  const align = schema.submitBtnAlign || 'right';
+  const size = schema.submitBtnSize || 'medium';
+  const btnText = schema.submitBtnText || 'Wyślij odpowiedź';
+
+  let padding = '0.85rem 1.75rem';
+  let fontSize = '1.05rem';
+  if (size === 'small') {
+    padding = '0.5rem 1rem';
+    fontSize = '0.9rem';
+  } else if (size === 'large') {
+    padding = '1.25rem 2.5rem';
+    fontSize = '1.2rem';
+  }
+
+  const questionsToRender = schema.oneQuestionPerPage
+    ? (() => {
+        if (focusedIndex === null || focusedIndex < 0 || focusedIndex >= inputableQuestions.length) {
+          return [];
+        }
+        const activeQuestion = inputableQuestions[focusedIndex];
+        const activeQuestionIdx = visibleQuestions.indexOf(activeQuestion);
+        if (activeQuestionIdx === -1) return [];
+
+        let prevInputableIdx = -1;
+        if (focusedIndex > 0) {
+          const prevQuestion = inputableQuestions[focusedIndex - 1];
+          prevInputableIdx = visibleQuestions.indexOf(prevQuestion);
+        }
+
+        return visibleQuestions.slice(prevInputableIdx + 1, activeQuestionIdx + 1);
+      })()
+    : schema.questions.filter(q => visibleQuestions.includes(q));
+
   if (submitted) {
     return (
       <div className="card animate-fade-in" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
@@ -293,17 +404,32 @@ export default function SurveyClient({
         <p className="p-muted" style={{ marginBottom: '2rem', fontSize: '1.1rem', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: schema.description }} />
       )}
       
-      <div style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: isDark ? '#0f172a' : '#f5f5f5', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: isDark ? '#cbd5e1' : '#333', border: `1px solid ${isDark ? '#1e293b' : '#e0e0e0'}` }}>
-        <strong>Szybkie wypełnianie:</strong> strzałki ↑↓ nawigacja · spacja zaznacz · 1-9 wybór opcji · Enter wyślij
-      </div>
+      {schema.oneQuestionPerPage && (
+        <div style={{ marginBottom: '1.5rem', padding: '0.75rem 1rem', backgroundColor: isDark ? '#1e293b' : '#f3f4f6', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: isDark ? '#cbd5e1' : '#374151', border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>⌨️</span>
+          <span>
+            <strong>Szybki wybór:</strong> Użyj cyfr <strong>1-9</strong> na klawiaturze, aby wybrać odpowiedź · <strong>Enter</strong> przejdź dalej / wyślij
+          </span>
+        </div>
+      )}
+
+      {schema.oneQuestionPerPage && inputableQuestions.length > 0 && (
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <span>Krok {(focusedIndex || 0) + 1} z {inputableQuestions.length}</span>
+            <span>{Math.round((((focusedIndex || 0)) / inputableQuestions.length) * 100)}% ukończono</span>
+          </div>
+          <div style={{ width: '100%', height: '6px', backgroundColor: isDark ? '#1e293b' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{ width: `${(((focusedIndex || 0) + 1) / inputableQuestions.length) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
+          </div>
+        </div>
+      )}
 
       {schema.questions.length === 0 ? (
         <p style={{ color: 'var(--text-muted)' }}>Ta ankieta jest jeszcze pusta.</p>
       ) : (
         <form ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          {schema.questions.map((q, idx) => {
-            const isVisible = visibleQuestions.includes(q);
-            if (!isVisible) return null;
+          {questionsToRender.map((q, idx) => {
             const inputIdx = inputableQuestions.indexOf(q);
             const isFocused = inputIdx !== -1 && inputIdx === focusedIndex;
 
@@ -312,7 +438,7 @@ export default function SurveyClient({
                 key={q.id} 
                 className="animate-slide-down" 
                 style={{ 
-                  ...(isFocused ? { outline: '1px solid #333', outlineOffset: '3px', borderRadius: 'var(--radius-md)' } : {}),
+                  ...((isFocused && !schema.oneQuestionPerPage) ? { outline: '1px solid #333', outlineOffset: '3px', borderRadius: 'var(--radius-md)' } : {}),
                   animationDelay: `${idx * 0.1}s` 
                 }}
               >
@@ -385,14 +511,36 @@ export default function SurveyClient({
                         checked={answers[q.id] === opt}
                         onChange={() => {
                           handleInput(q.id, opt);
-                          setTimeout(() => {
-                            focusQuestion(inputIdx + 1);
-                          }, 100);
+                          if (schema.oneQuestionPerPage) {
+                            setTimeout(() => {
+                              if (inputIdx < inputableQuestions.length - 1) {
+                                setFocusedIndex(inputIdx + 1);
+                              }
+                            }, 250);
+                          } else {
+                            setTimeout(() => {
+                              focusQuestion(inputIdx + 1);
+                            }, 100);
+                          }
                         }}
                         style={{ display: 'none' }}
                       />
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, minWidth: '1.2rem', textAlign: 'center' }}>{i + 1}</span>
+                        {schema.oneQuestionPerPage && (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            color: isDark ? '#cbd5e1' : '#374151',
+                            backgroundColor: isDark ? '#334155' : '#f3f4f6',
+                            border: `1px solid ${isDark ? '#475569' : '#d1d5db'}`,
+                            borderRadius: '4px',
+                            padding: '1px 5px',
+                            fontWeight: 600,
+                            minWidth: '1.2rem',
+                            textAlign: 'center',
+                            boxShadow: '0 1px 1px rgba(0,0,0,0.05)',
+                            fontFamily: 'monospace'
+                          }}>{i + 1}</span>
+                        )}
                         <div style={{
                           width: 18,
                           height: 18,
@@ -446,7 +594,21 @@ export default function SurveyClient({
                           style={{ display: 'none' }}
                         />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, minWidth: '1.2rem', textAlign: 'center' }}>{i + 1}</span>
+                          {schema.oneQuestionPerPage && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              color: isDark ? '#cbd5e1' : '#374151',
+                              backgroundColor: isDark ? '#334155' : '#f3f4f6',
+                              border: `1px solid ${isDark ? '#475569' : '#d1d5db'}`,
+                              borderRadius: '4px',
+                              padding: '1px 5px',
+                              fontWeight: 600,
+                              minWidth: '1.2rem',
+                              textAlign: 'center',
+                              boxShadow: '0 1px 1px rgba(0,0,0,0.05)',
+                              fontFamily: 'monospace'
+                            }}>{i + 1}</span>
+                          )}
                           <div style={{
                             width: 18,
                             height: 18,
@@ -491,17 +653,26 @@ export default function SurveyClient({
                         checked={answers[q.id] === num.toString()}
                         onChange={() => {
                           handleInput(q.id, num.toString());
-                          setTimeout(() => {
-                            focusQuestion(inputIdx + 1);
-                          }, 100);
+                          if (schema.oneQuestionPerPage) {
+                            setTimeout(() => {
+                              if (inputIdx < inputableQuestions.length - 1) {
+                                setFocusedIndex(inputIdx + 1);
+                              }
+                            }, 250);
+                          } else {
+                            setTimeout(() => {
+                              focusQuestion(inputIdx + 1);
+                            }, 100);
+                          }
                         }}
                         style={{ display: 'none' }}
                       />
                       <div style={{
                         minWidth: '3rem',
-                        height: '3rem',
-                        padding: '0 0.5rem',
+                        height: '3.5rem',
+                        padding: '0.25rem 0.5rem',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
                         borderRadius: 'var(--radius-md)',
@@ -509,9 +680,28 @@ export default function SurveyClient({
                         backgroundColor: answers[q.id] === num.toString() ? 'var(--primary-color)' : 'var(--card-bg)',
                         color: answers[q.id] === num.toString() ? (lightTextOnBtn ? '#fff' : '#1a1a1a') : 'var(--text-color)',
                         fontWeight: answers[q.id] === num.toString() ? 600 : 400,
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        gap: '0.2rem'
                       }}>
-                        {num}
+                        <span style={{ fontSize: '1.1rem' }}>{num}</span>
+                        {schema.oneQuestionPerPage && numIdx < 9 && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            color: answers[q.id] === num.toString() 
+                              ? (lightTextOnBtn ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)')
+                              : 'var(--text-muted)',
+                            backgroundColor: answers[q.id] === num.toString() 
+                              ? (lightTextOnBtn ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)')
+                              : (isDark ? '#1e293b' : '#f3f4f6'),
+                            border: `1px solid ${answers[q.id] === num.toString() ? 'transparent' : (isDark ? '#334155' : '#e5e7eb')}`,
+                            borderRadius: '3px',
+                            padding: '0 4px',
+                            fontWeight: 600,
+                            minWidth: '1.1rem',
+                            textAlign: 'center',
+                            fontFamily: 'monospace'
+                          }}>{numIdx + 1}</span>
+                        )}
                       </div>
                     </label>
                   ))}
@@ -521,21 +711,92 @@ export default function SurveyClient({
             </div>
           );})}
 
-          {(() => {
-            const align = schema.submitBtnAlign || 'right';
-            const size = schema.submitBtnSize || 'medium';
-            const btnText = schema.submitBtnText || 'Wyślij odpowiedź';
+          {schema.oneQuestionPerPage ? (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '2rem',
+              borderTop: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
+              paddingTop: '1.5rem',
+              gap: '1rem'
+            }}>
+              <div>
+                {(focusedIndex || 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFocusedIndex((focusedIndex || 0) - 1)}
+                    className="btn btn-secondary"
+                    style={{
+                      padding,
+                      fontSize,
+                      backgroundColor: 'transparent',
+                      border: `1px solid ${isDark ? '#475569' : '#cbd5e1'}`,
+                      color: 'var(--text-color)',
+                      cursor: 'pointer',
+                      borderRadius: 'var(--radius-md)',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ← Wstecz
+                  </button>
+                )}
+              </div>
 
-            let padding = '0.85rem 1.75rem';
-            let fontSize = '1.05rem';
-            if (size === 'small') {
-              padding = '0.5rem 1rem';
-              fontSize = '0.9rem';
-            } else if (size === 'large') {
-              padding = '1.25rem 2.5rem';
-              fontSize = '1.2rem';
-            }
-
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {(focusedIndex || 0) < inputableQuestions.length - 1 ? (
+                  <>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      lub naciśnij Enter ⌨
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="btn btn-primary"
+                      style={{
+                        padding,
+                        fontSize,
+                        backgroundColor: btn,
+                        color: lightTextOnBtn ? '#fff' : '#1a1a1a',
+                        border: btn.toLowerCase() === '#ffffff' ? '1px solid #ccc' : 'none',
+                        transition: 'all 0.2s',
+                        boxShadow: `0 2px 6px ${btn}44`,
+                        cursor: 'pointer',
+                        borderRadius: 'var(--radius-md)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Dalej →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      lub naciśnij Enter ⌨
+                    </span>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      style={{
+                        padding,
+                        fontSize,
+                        backgroundColor: btn,
+                        color: lightTextOnBtn ? '#fff' : '#1a1a1a',
+                        border: btn.toLowerCase() === '#ffffff' ? '1px solid #ccc' : 'none',
+                        transition: 'all 0.2s',
+                        boxShadow: `0 2px 6px ${btn}44`,
+                        borderRadius: 'var(--radius-md)',
+                        fontWeight: 600,
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Wysyłanie...' : btnText}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (() => {
             const wrapperStyle: React.CSSProperties = {
               display: 'flex',
               gap: '0.75rem',

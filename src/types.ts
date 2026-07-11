@@ -33,6 +33,7 @@ export interface SurveySchema {
   submitBtnSize?: 'small' | 'medium' | 'large';
   submitBtnAlign?: 'left' | 'right' | 'center' | 'full';
   emailNotifications?: boolean;
+  oneQuestionPerPage?: boolean;
 }
 
 export interface Survey {

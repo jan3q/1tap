@@ -95,6 +95,7 @@ export default function EditorClient({
   const [submitBtnSize, setSubmitBtnSize] = useState<'small' | 'medium' | 'large'>(initialSurvey.schema.submitBtnSize || 'medium');
   const [submitBtnAlign, setSubmitBtnAlign] = useState<'left' | 'right' | 'center' | 'full'>(initialSurvey.schema.submitBtnAlign || 'right');
   const [emailNotifications, setEmailNotifications] = useState<boolean>(initialSurvey.schema.emailNotifications || false);
+  const [oneQuestionPerPage, setOneQuestionPerPage] = useState<boolean>(initialSurvey.schema.oneQuestionPerPage || false);
   const [showBtnConfig, setShowBtnConfig] = useState(false);
   const [manualConnections, setManualConnections] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'settings' | 'results'>(initialTab);
@@ -182,7 +183,8 @@ export default function EditorClient({
           submitBtnText,
           submitBtnSize,
           submitBtnAlign,
-          emailNotifications
+          emailNotifications,
+          oneQuestionPerPage
         };
         const res = await fetch(`/api/surveys/${initialSurvey.id}`, {
           method: 'PUT',
@@ -1246,6 +1248,16 @@ export default function EditorClient({
                   pointerEvents: 'none'
                 }} />
               </label>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div>
+                <h3 className="h2" style={{ fontSize: '1.25rem', margin: 0 }}>Jedno pytanie na stronę</h3>
+                <p className="p-muted" style={{ marginTop: '0.25rem', marginBottom: 0 }}>Wyświetlaj tylko jedno pytanie na raz i automatycznie przechodź do kolejnego po zaznaczeniu odpowiedzi.</p>
+              </div>
+              <Switch checked={oneQuestionPerPage} onChange={setOneQuestionPerPage} />
             </div>
           </div>
         </div>
