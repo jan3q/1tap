@@ -12,6 +12,7 @@ export interface Question {
   scaleStep?: number;
   description?: string; // objaśnienie pod pytaniem lub podtytuł dla nagłówka
   colorTag?: string; // ręcznie przypisany kolor powiązania (hex), widoczny gdy włączono "Samodzielne powiązanie"
+  hidden?: boolean; // ukrywanie pola
   logic?: {
     strategy: 'all' | 'any';
     conditions: {

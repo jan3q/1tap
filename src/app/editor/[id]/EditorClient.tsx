@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Survey, SurveySchema, Question, QuestionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, Check, Shield, Copy } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, EyeOff, Check, Shield, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RichTextField } from './RichTextField';
@@ -427,6 +427,13 @@ export default function EditorClient({
                       ? `0 0 0 3px ${manualColor}, 0 0 0 1px #333 inset`
                       : '0 0 0 1px #333',
                   backgroundColor: isConnected ? `${firstColor}0D` : manualColor ? `${manualColor}0D` : '#f0f0f3',
+                } : {}),
+                ...(q.hidden ? {
+                  opacity: 0.55,
+                  filter: 'grayscale(70%)',
+                  backgroundColor: '#f1f5f9',
+                  borderColor: '#cbd5e1',
+                  borderStyle: 'dashed',
                 } : {}),
               }}
               onClick={() => setFocusedQuestionId(q.id)}
@@ -892,6 +899,9 @@ export default function EditorClient({
                     )}
                     <button onClick={() => duplicateQuestion(i)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', marginRight: '0.5rem' }} title="Duplikuj">
                       <Copy size={16} /> Duplikuj
+                    </button>
+                    <button onClick={() => updateQuestion(q.id, { hidden: !q.hidden })} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', marginRight: '0.5rem' }} title={q.hidden ? "Pokaż" : "Ukryj"}>
+                      {q.hidden ? <EyeOff size={16} /> : <Eye size={16} />} {q.hidden ? 'Pokaż' : 'Ukryj'}
                     </button>
                     <button onClick={() => handleDeleteClick(q.id)} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }}>
                       <Trash2 size={16} /> {q.type === 'header' ? 'Usuń sekcję' : 'Usuń'}

@@ -44,6 +44,7 @@ export default function SurveyClient({
   }, [surveyId, isPreview]);
 
   const visibleQuestions = schema.questions.filter(q => {
+    if (q.hidden) return false;
     if (q.type === 'header') return true;
     if (!q.logic || !q.logic.conditions || q.logic.conditions.length === 0) return true;
     
@@ -79,7 +80,7 @@ export default function SurveyClient({
   const inputableQuestions = visibleQuestions.filter(q => q.type !== 'header' && q.type !== 'gdpr');
 
   const maxSteps = useMemo(() => {
-    const questions = schema.questions.filter(q => q.type !== 'header' && q.type !== 'gdpr');
+    const questions = schema.questions.filter(q => !q.hidden && q.type !== 'header' && q.type !== 'gdpr');
     const conditionValues: Record<string, Set<string>> = {};
     questions.forEach(q => {
       if (q.logic?.conditions) {
