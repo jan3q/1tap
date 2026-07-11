@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Survey, SurveySchema, Question, QuestionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, Check } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, Check, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RichTextField } from './RichTextField';
@@ -96,6 +96,7 @@ export default function EditorClient({
   const [submitBtnAlign, setSubmitBtnAlign] = useState<'left' | 'right' | 'center' | 'full'>(initialSurvey.schema.submitBtnAlign || 'right');
   const [emailNotifications, setEmailNotifications] = useState<boolean>(initialSurvey.schema.emailNotifications || false);
   const [oneQuestionPerPage, setOneQuestionPerPage] = useState<boolean>(initialSurvey.schema.oneQuestionPerPage || false);
+  const [showProgressBar, setShowProgressBar] = useState<boolean>(initialSurvey.schema.showProgressBar !== false);
   const [showBtnConfig, setShowBtnConfig] = useState(false);
   const [manualConnections, setManualConnections] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'settings' | 'results'>(initialTab);
@@ -184,7 +185,8 @@ export default function EditorClient({
           submitBtnSize,
           submitBtnAlign,
           emailNotifications,
-          oneQuestionPerPage
+          oneQuestionPerPage,
+          showProgressBar
         };
         const res = await fetch(`/api/surveys/${initialSurvey.id}`, {
           method: 'PUT',
@@ -212,8 +214,9 @@ export default function EditorClient({
     const newQuestion: Question = {
       id: uuidv4(),
       type,
-      title: '',
-      required: false,
+      title: type === 'gdpr' ? 'Zgoda' : '',
+      description: type === 'gdpr' ? 'Przeczytałem/am politykę prywatności i akceptuję jej treść. Wyrażam zgodę na otrzymywanie wiadomości na wskazany email także o charakterze marketingowym.' : undefined,
+      required: type === 'gdpr' ? true : false,
       options: type === 'radio' || type === 'checkbox' ? ['Opcja 1'] : undefined,
       scaleMin: type === 'scale' ? 1 : undefined,
       scaleMax: type === 'scale' ? 10 : undefined,
@@ -518,6 +521,7 @@ export default function EditorClient({
                       <option value="radio">Pojedynczy wybór</option>
                       <option value="scale">Skala 1-10</option>
                       <option value="header">Nagłówek sekcji</option>
+                      <option value="gdpr">Zgoda RODO / GDPR</option>
                     </select>
                   </div>
 
@@ -905,6 +909,9 @@ export default function EditorClient({
               <button onClick={() => addQuestion('scale')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
                 <SlidersHorizontal size={16}/> Skala
               </button>
+              <button onClick={() => addQuestion('gdpr')} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem', minHeight: 'auto' }}>
+                <Shield size={16}/> Zgoda RODO
+              </button>
             </div>
           </div>
 
@@ -1229,6 +1236,16 @@ export default function EditorClient({
                 <p className="p-muted" style={{ marginTop: '0.25rem', marginBottom: 0 }}>Wyświetlaj tylko jedno pytanie na raz i automatycznie przechodź do kolejnego po zaznaczeniu odpowiedzi.</p>
               </div>
               <Switch checked={oneQuestionPerPage} onChange={setOneQuestionPerPage} />
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div>
+                <h3 className="h2" style={{ fontSize: '1.25rem', margin: 0 }}>Pasek postępu</h3>
+                <p className="p-muted" style={{ marginTop: '0.25rem', marginBottom: 0 }}>Pokazuj wskaźnik postępu wypełniania ankiety.</p>
+              </div>
+              <Switch checked={showProgressBar} onChange={setShowProgressBar} />
             </div>
           </div>
         </div>

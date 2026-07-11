@@ -1,4 +1,4 @@
-export type QuestionType = 'short-text' | 'long-text' | 'number' | 'checkbox' | 'radio' | 'scale' | 'header';
+export type QuestionType = 'short-text' | 'long-text' | 'number' | 'checkbox' | 'radio' | 'scale' | 'header' | 'gdpr';
 
 export interface Question {
   id: string;
@@ -34,6 +34,7 @@ export interface SurveySchema {
   submitBtnAlign?: 'left' | 'right' | 'center' | 'full';
   emailNotifications?: boolean;
   oneQuestionPerPage?: boolean;
+  showProgressBar?: boolean;
 }
 
 export interface Survey {

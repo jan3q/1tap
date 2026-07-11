@@ -75,7 +75,100 @@ export default function SurveyClient({
     return conditions.every((cond: any) => evaluateCondition(cond));
   });
 
-  const inputableQuestions = visibleQuestions.filter(q => q.type !== 'header');
+  const gdprQuestions = visibleQuestions.filter(q => q.type === 'gdpr');
+  const inputableQuestions = visibleQuestions.filter(q => q.type !== 'header' && q.type !== 'gdpr');
+
+  const maxSteps = useMemo(() => {
+    const questions = schema.questions.filter(q => q.type !== 'header' && q.type !== 'gdpr');
+    const conditionValues: Record<string, Set<string>> = {};
+    questions.forEach(q => {
+      if (q.logic?.conditions) {
+        q.logic.conditions.forEach(cond => {
+          if (cond.fieldId && cond.value) {
+            if (!conditionValues[cond.fieldId]) conditionValues[cond.fieldId] = new Set();
+            conditionValues[cond.fieldId].add(cond.value);
+          }
+        });
+      }
+    });
+
+    if (Object.keys(conditionValues).length === 0) return questions.length;
+
+    const fields = Object.keys(conditionValues);
+    const possibleAssignments: Record<string, string>[] = [];
+
+    const generateAssignments = (index: number, current: Record<string, string>) => {
+      if (index === fields.length) {
+        possibleAssignments.push({ ...current });
+        return;
+      }
+      const field = fields[index];
+      const values = Array.from(conditionValues[field]);
+      values.push('__fallback__');
+      values.forEach(val => {
+        current[field] = val;
+        generateAssignments(index + 1, current);
+      });
+    };
+
+    generateAssignments(0, {});
+
+    let maxVis = 0;
+    possibleAssignments.forEach(assignment => {
+      let visCount = 0;
+      questions.forEach(q => {
+        if (!q.logic || !q.logic.conditions || q.logic.conditions.length === 0) {
+          visCount++;
+          return;
+        }
+        const { strategy, conditions } = q.logic;
+        const evaluateCondition = (cond: any) => {
+          const { fieldId, operator, value } = cond;
+          const answer = assignment[fieldId];
+          switch (operator) {
+            case 'empty': return !answer || answer === '__fallback__';
+            case 'not-empty': return answer && answer !== '__fallback__';
+            case 'equals': return String(answer).toLowerCase() === String(value).toLowerCase();
+            case 'not-equals': return String(answer).toLowerCase() !== String(value).toLowerCase();
+            case 'contains': return String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
+            case 'not-contains': return !String(answer || '').toLowerCase().includes(String(value || '').toLowerCase());
+            case 'greater': return Number(answer || 0) > Number(value);
+            case 'less': return Number(answer || 0) < Number(value);
+            default: return true;
+          }
+        };
+        const isVisible = strategy === 'any' 
+          ? conditions.some((cond: any) => evaluateCondition(cond))
+          : conditions.every((cond: any) => evaluateCondition(cond));
+        if (isVisible) visCount++;
+      });
+      if (visCount > maxVis) maxVis = visCount;
+    });
+    return maxVis;
+  }, [schema.questions]);
+
+  const renderGDPR = () => {
+    if (gdprQuestions.length === 0) return null;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', width: '100%' }}>
+        {gdprQuestions.map(q => (
+          <label key={q.id} className="animate-fade-in" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', backgroundColor: isDark ? '#1e293b' : '#f8fafc', padding: '1.2rem', borderRadius: 'var(--radius-md)', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}` }}>
+            <input
+              type="checkbox"
+              required={q.required}
+              checked={!!answers[q.id]}
+              onChange={(e) => handleInput(q.id, e.target.checked ? ['Tak'] : [])}
+              style={{ marginTop: '0.2rem', width: '1.2rem', height: '1.2rem', cursor: 'pointer', flexShrink: 0 }}
+            />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.25rem', color: isDark ? '#e2e8f0' : '#1e293b' }}>{q.title} {q.required && <span style={{ color: '#ef4444' }}>*</span>}</div>
+              {q.description && <div style={{ fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b', lineHeight: 1.5 }}>{q.description}</div>}
+            </div>
+          </label>
+        ))}
+      </div>
+    );
+  };
 
   const focusQuestion = (index: number) => {
     if (index < 0) return;
@@ -112,11 +205,24 @@ export default function SurveyClient({
     }
   };
 
+  const inputableQuestionsRef = useRef(inputableQuestions);
+  useEffect(() => {
+    inputableQuestionsRef.current = inputableQuestions;
+  }, [inputableQuestions]);
+
   useEffect(() => {
     if (focusedIndex !== null && focusedIndex < inputableQuestions.length) {
       const el = questionRefs.current[focusedIndex];
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (schema.oneQuestionPerPage) {
+          setTimeout(() => {
+            const firstInput = el.querySelector('input[type="text"], input[type="number"], textarea') as HTMLElement;
+            if (firstInput) {
+              firstInput.focus();
+            }
+          }, 50);
+        }
       }
     }
   }, [focusedIndex, inputableQuestions]);
@@ -141,13 +247,13 @@ export default function SurveyClient({
               if (!allValid) return;
             }
           }
-          if (currentIdx < inputableQuestions.length - 1) {
+          if (currentIdx < inputableQuestionsRef.current.length - 1) {
             setFocusedIndex(currentIdx + 1);
           }
         } else {
           focusQuestion(currentIdx + 1);
         }
-      }, 250);
+      }, 100);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -415,14 +521,14 @@ export default function SurveyClient({
         </div>
       )}
 
-      {schema.oneQuestionPerPage && inputableQuestions.length > 0 && (
+      {schema.oneQuestionPerPage && inputableQuestions.length > 0 && schema.showProgressBar !== false && (
         <div style={{ marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${isDark ? '#333' : '#eee'}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500, color: isDark ? '#aaa' : '#666' }}>
-            <span>Krok {(focusedIndex || 0) + 1} z {schema.questions.filter(q => q.type !== 'header').length}</span>
-            <span>{Math.round((((focusedIndex || 0)) / schema.questions.filter(q => q.type !== 'header').length) * 100)}% ukończono</span>
+            <span>Krok {(focusedIndex || 0) + 1} z {maxSteps}</span>
+            <span>{Math.round((((focusedIndex || 0)) / maxSteps) * 100)}% ukończono</span>
           </div>
           <div style={{ height: '6px', backgroundColor: isDark ? '#333' : '#eee', borderRadius: '3px', overflow: 'hidden' }}>
-            <div style={{ width: `${(((focusedIndex || 0) + 1) / schema.questions.filter(q => q.type !== 'header').length) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
+            <div style={{ width: `${(((focusedIndex || 0) + 1) / maxSteps) * 100}%`, height: '100%', backgroundColor: btn, transition: 'width 0.3s ease' }} />
           </div>
         </div>
       )}
@@ -714,7 +820,9 @@ export default function SurveyClient({
           );})}
 
           {schema.oneQuestionPerPage ? (
-            <div style={{
+            <>
+              {(focusedIndex || 0) === inputableQuestions.length - 1 && renderGDPR()}
+              <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -797,7 +905,7 @@ export default function SurveyClient({
                   </>
                 )}
               </div>
-            </div>
+            </>
           ) : (() => {
             const wrapperStyle: React.CSSProperties = {
               display: 'flex',
@@ -828,11 +936,13 @@ export default function SurveyClient({
             }
 
             return (
-              <div style={wrapperStyle}>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{
+              <>
+                {renderGDPR()}
+                <div style={wrapperStyle}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{
                     padding,
                     fontSize,
                     backgroundColor: btn,
@@ -850,7 +960,8 @@ export default function SurveyClient({
                   lub naciśnij Enter ⌨
                 </span>
               </div>
-            );
+            </>
+          );
           })()}
         </form>
       )}
