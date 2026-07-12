@@ -337,9 +337,35 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
 
   const headersList = await headers();
   const host = headersList.get('host') || 'localhost:3001';
-  const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
-  const actualAppUrl = `${protocol}://${host}`;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || actualAppUrl;
+  
+  let envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  let baseUrl = '';
+
+  if (envUrl) {
+    envUrl = envUrl.trim().replace(/\/+$/, '');
+    if (envUrl.startsWith('http://')) {
+      if (envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+        baseUrl = envUrl;
+      } else {
+        baseUrl = envUrl.replace('http://', 'https://');
+      }
+    } else if (envUrl.startsWith('https://')) {
+      baseUrl = envUrl;
+    } else {
+      if (envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+        baseUrl = `http://${envUrl}`;
+      } else {
+        baseUrl = `https://${envUrl}`;
+      }
+    }
+  } else {
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      baseUrl = `http://${host}`;
+    } else {
+      baseUrl = `https://${host}`;
+    }
+  }
+
   const surveyUrl = `${baseUrl}/s/${survey.id}`;
   
   const schema = JSON.parse(survey.schema_json) as SurveySchema;
