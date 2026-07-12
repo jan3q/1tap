@@ -19,6 +19,7 @@ export default function SurveyClient({
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forceSubmitView, setForceSubmitView] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
@@ -200,6 +201,7 @@ export default function SurveyClient({
 
   const handleNext = () => {
     if (focusedIndex === null) return;
+    setForceSubmitView(false);
     
     // HTML5 validation check for the active question container
     const el = questionRefs.current[focusedIndex];
@@ -220,10 +222,8 @@ export default function SurveyClient({
     if (focusedIndex < inputableQuestions.length - 1) {
       setFocusedIndex(focusedIndex + 1);
     } else {
-      // Jeśli przycisk wyświetlał się jako 'Dalej', ale faktycznie nie ma więcej widocznych pytań, wyślij formularz
-      if (formRef.current) {
-        formRef.current.requestSubmit();
-      }
+      // Zamiast wysyłać od razu, wymuś pokazanie przycisku Wyślij
+      setForceSubmitView(true);
     }
   };
 
@@ -284,7 +284,14 @@ export default function SurveyClient({
           return;
         }
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-          return;
+          if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter') {
+            return;
+          }
+          if (e.key === 'Enter' && (e.target.type === 'text' || e.target.type === 'number' || e.target.type === 'email' || e.target.type === 'tel' || e.target.type === 'url' || e.target.type === 'password' || e.target.type === 'search')) {
+            e.preventDefault();
+          } else if (e.key !== 'Enter') {
+            return;
+          }
         }
       }
 
@@ -311,15 +318,15 @@ export default function SurveyClient({
       }
 
       if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-          // ENTER can only work in keyboard selection mode. If typing, do nothing.
-          return;
-        }
         e.preventDefault();
         if (schema.oneQuestionPerPage) {
           if (focusedIndex !== null && focusedIndex < inputableQuestions.length - 1) {
             handleNext();
           } else {
+            if (!forceSubmitView) {
+              setForceSubmitView(true);
+              return;
+            }
             // Waliduj ostatnie pytanie przed wysłaniem
             if (focusedIndex !== null) {
               const el = questionRefs.current[focusedIndex];
@@ -996,7 +1003,7 @@ export default function SurveyClient({
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {(focusedIndex || 0) < finalMaxSteps - 1 ? (
+                {(focusedIndex || 0) < finalMaxSteps - 1 && !forceSubmitView ? (
                   <>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                       lub naciśnij Enter ⌨
