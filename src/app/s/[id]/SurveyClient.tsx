@@ -283,6 +283,12 @@ export default function SurveyClient({
           if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter') {
             return;
           }
+          // Zgodnie z zasadą: "Enter może działać tylko i wyłącznie w trybie wybierania z klawiatury odpowiedzi. Inaczej Enter nie może powodować żadnych działań."
+          // Blokujemy Enter we wszystkich polach tekstowych, aby nie wysyłał formularza i nie przechodził dalej.
+          if (e.key === 'Enter' && (e.target.type === 'text' || e.target.type === 'number' || e.target.type === 'email' || e.target.type === 'tel' || e.target.type === 'url' || e.target.type === 'password' || e.target.type === 'search')) {
+            e.preventDefault();
+            return;
+          }
           // Pozwól na normalne pisanie i poruszanie się strzałkami w polach tekstowych
           if (e.key !== 'Enter') {
             if (e.target.type === 'text' || e.target.type === 'number' || e.target.tagName === 'TEXTAREA') return;
@@ -665,7 +671,18 @@ export default function SurveyClient({
       {schema.questions.length === 0 ? (
         <p style={{ color: 'var(--text-muted)' }}>Ta ankieta jest jeszcze pusta.</p>
       ) : (
-        <form ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <form 
+          ref={formRef} 
+          onSubmit={handleSubmit} 
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              if (e.target instanceof HTMLInputElement && e.target.type !== 'radio' && e.target.type !== 'checkbox' && e.target.type !== 'submit' && e.target.type !== 'button') {
+                e.preventDefault();
+              }
+            }
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}
+        >
           {questionsToRender.map((q, idx) => {
             const inputIdx = inputableQuestions.indexOf(q);
             const isFocused = inputIdx !== -1 && inputIdx === focusedIndex;
