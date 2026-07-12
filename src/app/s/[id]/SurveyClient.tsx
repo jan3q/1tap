@@ -219,6 +219,11 @@ export default function SurveyClient({
     
     if (focusedIndex < inputableQuestions.length - 1) {
       setFocusedIndex(focusedIndex + 1);
+    } else {
+      // Jeśli przycisk wyświetlał się jako 'Dalej', ale faktycznie nie ma więcej widocznych pytań, wyślij formularz
+      if (formRef.current) {
+        formRef.current.requestSubmit();
+      }
     }
   };
 
@@ -283,14 +288,11 @@ export default function SurveyClient({
           if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter') {
             return;
           }
-          // Zgodnie z zasadą: "Enter może działać tylko i wyłącznie w trybie wybierania z klawiatury odpowiedzi. Inaczej Enter nie może powodować żadnych działań."
-          // Blokujemy Enter we wszystkich polach tekstowych, aby nie wysyłał formularza i nie przechodził dalej.
+          // Blokujemy natywny submit, ale pozwalamy głównemu kodowi niżej obsłużyć Enter (np. przejście dalej)
           if (e.key === 'Enter' && (e.target.type === 'text' || e.target.type === 'number' || e.target.type === 'email' || e.target.type === 'tel' || e.target.type === 'url' || e.target.type === 'password' || e.target.type === 'search')) {
             e.preventDefault();
-            return;
-          }
-          // Pozwól na normalne pisanie i poruszanie się strzałkami w polach tekstowych
-          if (e.key !== 'Enter') {
+          } else if (e.key !== 'Enter') {
+            // Pozwól na normalne pisanie i poruszanie się strzałkami w polach tekstowych
             if (e.target.type === 'text' || e.target.type === 'number' || e.target.tagName === 'TEXTAREA') return;
           }
         }
@@ -1000,7 +1002,7 @@ export default function SurveyClient({
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {(focusedIndex || 0) < inputableQuestions.length - 1 ? (
+                {(focusedIndex || 0) < finalMaxSteps - 1 ? (
                   <>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                       lub naciśnij Enter ⌨
