@@ -129,6 +129,33 @@ export async function submitSurveyResponse(surveyId: string, answers: Record<str
           if (val === undefined || val === '') {
             val = null;
           }
+
+          // Wybór wartości w webhooku - gdy jest wybór, musimy w wartości dostarczyć całą wartość odpowiedzi, a nie indeks np. 2
+          if ((q.type === 'radio' || q.type === 'checkbox') && q.options && Array.isArray(q.options) && q.options.length > 0) {
+            const resolveSingle = (v: any) => {
+              if (v === null || v === undefined) return v;
+              const strVal = String(v).trim();
+              if (q.options.includes(strVal)) {
+                return strVal;
+              }
+              const num = parseInt(strVal, 10);
+              if (!isNaN(num)) {
+                if (num >= 1 && num <= q.options.length) {
+                  return q.options[num - 1];
+                }
+                if (num >= 0 && num < q.options.length) {
+                  return q.options[num];
+                }
+              }
+              return v;
+            };
+
+            if (Array.isArray(val)) {
+              val = val.map(resolveSingle);
+            } else {
+              val = resolveSingle(val);
+            }
+          }
           
           const customValue = answers[`${q.id}_custom`];
           if (customValue && customValue.trim()) {

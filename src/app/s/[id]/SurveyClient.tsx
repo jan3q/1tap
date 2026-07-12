@@ -232,14 +232,12 @@ export default function SurveyClient({
       const el = questionRefs.current[focusedIndex];
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if (schema.oneQuestionPerPage) {
-          setTimeout(() => {
-            const firstInput = el.querySelector('input[type="text"], input[type="number"], textarea') as HTMLElement;
-            if (firstInput) {
-              firstInput.focus();
-            }
-          }, 50);
-        }
+        setTimeout(() => {
+          const firstInput = el.querySelector('input[type="text"], input[type="number"], textarea, select, input[type="radio"], input[type="checkbox"]') as HTMLElement;
+          if (firstInput) {
+            firstInput.focus();
+          }
+        }, 50);
       }
     }
   }, [focusedIndex, inputableQuestions]);
@@ -276,8 +274,20 @@ export default function SurveyClient({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (submitted || isSubmitting) return;
 
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        if (e.target.type === 'text' || e.target.type === 'number' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target instanceof HTMLElement) {
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+          return;
+        }
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          // Pozwól textarea obsłużyć Enter natywnie (nowa linia)
+          if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter') {
+            return;
+          }
+          // Pozwól na normalne pisanie i poruszanie się strzałkami w polach tekstowych
+          if (e.key !== 'Enter') {
+            if (e.target.type === 'text' || e.target.type === 'number' || e.target.tagName === 'TEXTAREA') return;
+          }
+        }
       }
 
       const q = focusedIndex !== null && focusedIndex < inputableQuestions.length 
@@ -308,13 +318,50 @@ export default function SurveyClient({
           if (focusedIndex !== null && focusedIndex < inputableQuestions.length - 1) {
             handleNext();
           } else {
+            // Waliduj ostatnie pytanie przed wysłaniem
+            if (focusedIndex !== null) {
+              const el = questionRefs.current[focusedIndex];
+              if (el) {
+                const inputs = el.querySelectorAll('input, textarea, select');
+                let allValid = true;
+                for (let i = 0; i < inputs.length; i++) {
+                  const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+                  if (!input.checkValidity()) {
+                    input.reportValidity();
+                    allValid = false;
+                    break;
+                  }
+                }
+                if (!allValid) return;
+              }
+            }
             if (formRef.current) {
               formRef.current.requestSubmit();
             }
           }
         } else {
-          if (formRef.current) {
-            formRef.current.requestSubmit();
+          // W trybie wielu pytań na stronę Enter przechodzi do kolejnego pytania
+          if (focusedIndex !== null && focusedIndex < inputableQuestions.length - 1) {
+            // Waliduj aktualne pytanie przed przejściem dalej
+            const el = questionRefs.current[focusedIndex];
+            if (el) {
+              const inputs = el.querySelectorAll('input, textarea, select');
+              let allValid = true;
+              for (let i = 0; i < inputs.length; i++) {
+                const input = inputs[i] as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+                if (!input.checkValidity()) {
+                  input.reportValidity();
+                  allValid = false;
+                  break;
+                }
+              }
+              if (!allValid) return;
+            }
+            focusQuestion(focusedIndex + 1);
+          } else {
+            if (formRef.current) {
+              formRef.current.requestSubmit();
+            }
           }
         }
         return;
@@ -440,6 +487,71 @@ export default function SurveyClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Sprawdzenie poprawności wszystkich wymaganych pytań, które są widoczne
+    let firstInvalidIndex: number | null = null;
+    for (let i = 0; i < inputableQuestions.length; i++) {
+      const q = inputableQuestions[i];
+      const ans = answers[q.id];
+      const hasAnswer = ans !== undefined && ans !== '' && (!Array.isArray(ans) || ans.length > 0);
+      if (q.required && !hasAnswer) {
+        firstInvalidIndex = i;
+        break;
+      }
+    }
+    
+    let gdprValid = true;
+    for (const q of gdprQuestions) {
+      if (q.required) {
+        const ans = answers[q.id];
+        const hasAnswer = ans !== undefined && ans !== '' && (!Array.isArray(ans) || ans.length > 0);
+        if (!hasAnswer) {
+          gdprValid = false;
+          break;
+        }
+      }
+    }
+
+    if (firstInvalidIndex !== null) {
+      // W trybie jedno pytanie na stronę skocz do tego pytania
+      if (schema.oneQuestionPerPage) {
+        setFocusedIndex(firstInvalidIndex);
+      } else {
+        focusQuestion(firstInvalidIndex);
+      }
+      
+      // Ustaw focus na pierwsze pole tego pytania i zgłoś błąd walidacji przeglądarki
+      setTimeout(() => {
+        const el = questionRefs.current[firstInvalidIndex!];
+        if (el) {
+          const firstInput = el.querySelector('input[type="text"], input[type="number"], textarea, select') as HTMLElement;
+          if (firstInput) {
+            firstInput.focus();
+            if ('reportValidity' in firstInput) {
+              (firstInput as any).reportValidity();
+            }
+          }
+        }
+      }, 100);
+      return;
+    }
+    
+    if (!gdprValid) {
+      if (schema.oneQuestionPerPage) {
+        setFocusedIndex(inputableQuestions.length - 1);
+      }
+      setTimeout(() => {
+        if (formRef.current) {
+          const firstGdpr = formRef.current.querySelector('input[type="checkbox"][required]') as HTMLInputElement;
+          if (firstGdpr) {
+            firstGdpr.focus();
+            firstGdpr.reportValidity();
+          }
+        }
+      }, 100);
+      return;
+    }
+
     setIsSubmitting(true);
 
     const visibleAnswers: Record<string, any> = {};
