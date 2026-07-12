@@ -696,7 +696,7 @@ export default function SurveyClient({
                 ref={(el) => { if (inputIdx !== -1) questionRefs.current[inputIdx] = el; }}
                 className="animate-slide-down" 
                 style={{ 
-                  ...((isFocused && !schema.oneQuestionPerPage) ? { outline: `2px solid ${btn}`, outlineOffset: '8px', borderRadius: 'var(--radius-md)' } : {}),
+                  ...((isFocused && !schema.oneQuestionPerPage) ? { outline: `1px solid ${btn}`, outlineOffset: '4px', borderRadius: 'var(--radius-md)' } : {}),
                   animationDelay: `${idx * 0.1}s` 
                 }}
               >
