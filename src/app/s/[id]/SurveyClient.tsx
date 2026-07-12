@@ -284,17 +284,7 @@ export default function SurveyClient({
           return;
         }
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-          // Pozwól textarea obsłużyć Enter natywnie (nowa linia)
-          if (e.target.tagName === 'TEXTAREA' && e.key === 'Enter') {
-            return;
-          }
-          // Blokujemy natywny submit, ale pozwalamy głównemu kodowi niżej obsłużyć Enter (np. przejście dalej)
-          if (e.key === 'Enter' && (e.target.type === 'text' || e.target.type === 'number' || e.target.type === 'email' || e.target.type === 'tel' || e.target.type === 'url' || e.target.type === 'password' || e.target.type === 'search')) {
-            e.preventDefault();
-          } else if (e.key !== 'Enter') {
-            // Pozwól na normalne pisanie i poruszanie się strzałkami w polach tekstowych
-            if (e.target.type === 'text' || e.target.type === 'number' || e.target.tagName === 'TEXTAREA') return;
-          }
+          return;
         }
       }
 
@@ -321,6 +311,10 @@ export default function SurveyClient({
       }
 
       if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          // ENTER can only work in keyboard selection mode. If typing, do nothing.
+          return;
+        }
         e.preventDefault();
         if (schema.oneQuestionPerPage) {
           if (focusedIndex !== null && focusedIndex < inputableQuestions.length - 1) {
