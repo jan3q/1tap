@@ -62,30 +62,30 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-              <h3 style={{ color: '#dc2626', fontSize: '1.2rem', margin: 0 }}>
-                Usuń ankietę
+              <span style={{ fontSize: '1.5rem' }}>🗑️</span>
+              <h3 style={{ color: '#d97706', fontSize: '1.2rem', margin: 0 }}>
+                Przenieś do kosza
               </h3>
             </div>
 
             <p style={{ marginBottom: '0.75rem', fontSize: '0.95rem', lineHeight: 1.6 }}>
-              Czy na pewno chcesz usunąć ankietę{' '}
-              <strong style={{ color: '#dc2626' }}>&quot;{surveyTitle}&quot;</strong>?
+              Czy na pewno chcesz przenieść ankietę{' '}
+              <strong style={{ color: '#d97706' }}>&quot;{surveyTitle}&quot;</strong> do kosza?
             </p>
 
             <p
               style={{
                 marginBottom: '1.5rem',
-                color: '#dc2626',
+                color: '#b45309',
                 fontWeight: 700,
                 fontSize: '0.95rem',
-                backgroundColor: '#fef2f2',
+                backgroundColor: '#fffbeb',
                 padding: '0.75rem 1rem',
                 borderRadius: 'var(--radius-sm)',
-                border: '1px solid #fecaca',
+                border: '1px solid #fef3c7',
               }}
             >
-              Wszystkie wyniki, odpowiedzi i dane zostaną bezpowrotnie usunięte!
+              Ankieta trafi do kosza na 30 dni. Będzie można ją przywrócić w dowolnym momencie z zakładki Kosz wraz ze wszystkimi wynikami.
             </p>
 
             <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>
@@ -126,9 +126,12 @@ export default function DeleteSurveyButton({ surveyId, surveyTitle }: { surveyId
                 style={{
                   opacity: confirmText !== surveyTitle ? 0.5 : 1,
                   cursor: confirmText !== surveyTitle ? 'not-allowed' : 'pointer',
+                  backgroundColor: '#d97706',
+                  color: '#fff',
+                  border: 'none',
                 }}
               >
-                {isDeleting ? 'Usuwanie...' : 'Usuń'}
+                {isDeleting ? 'Przenoszenie...' : 'Przenieś do kosza'}
               </button>
             </div>
           </div>

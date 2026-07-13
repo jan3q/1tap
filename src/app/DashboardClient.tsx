@@ -3,10 +3,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Eye, BarChart, Pencil, Search, X } from 'lucide-react';
+import { Plus, Eye, BarChart, Pencil, Search, X, Share2, Star, RotateCcw, Trash2, ArrowUpDown } from 'lucide-react';
 import DeleteSurveyButton from './DeleteSurveyButton';
 import { Survey } from '@/types';
-import { get2FAStatus, prepare2FA, enable2FA, disable2FA, updateAdminCredentials, logoutAllSessions } from '@/app/actions';
+import { get2FAStatus, prepare2FA, enable2FA, disable2FA, updateAdminCredentials, logoutAllSessions, toggleStarSurvey, restoreSurvey, deleteSurveyPermanently } from '@/app/actions';
 
 function normalize(text: string): string {
   return text
@@ -49,9 +49,16 @@ function searchScore(survey: Survey, query: string): number {
   return score;
 }
 
-export default function DashboardClient({ surveys: initialSurveys }: { surveys: Survey[] }) {
+export default function DashboardClient({ 
+  surveys: initialSurveys,
+  trashSurveys: initialTrashSurveys = []
+}: { 
+  surveys: Survey[];
+  trashSurveys?: Survey[];
+}) {
   const router = useRouter();
   const [surveys, setSurveys] = useState(initialSurveys);
+  const [trashSurveys, setTrashSurveys] = useState(initialTrashSurveys);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -59,7 +66,64 @@ export default function DashboardClient({ surveys: initialSurveys }: { surveys: 
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'surveys' | 'security'>('surveys');
+  const [activeTab, setActiveTab] = useState<'surveys' | 'trash' | 'security'>('surveys');
+  const [sortBy, setSortBy] = useState<'default' | 'az' | 'za' | 'newest' | 'oldest'>('default');
+
+  useEffect(() => {
+    setSurveys(initialSurveys);
+  }, [initialSurveys]);
+
+  useEffect(() => {
+    setTrashSurveys(initialTrashSurveys);
+  }, [initialTrashSurveys]);
+
+  const handleToggleStar = async (id: string) => {
+    // Optimistic update
+    setSurveys(prev => prev.map(s => s.id === id ? { ...s, is_starred: s.is_starred ? 0 : 1 } : s));
+    try {
+      await toggleStarSurvey(id);
+      router.refresh();
+    } catch (err) {
+      setSurveys(initialSurveys);
+      alert('Nie udało się zmienić wyróżnienia.');
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      await restoreSurvey(id);
+      const restored = trashSurveys.find(s => s.id === id);
+      if (restored) {
+        setTrashSurveys(prev => prev.filter(s => s.id !== id));
+        setSurveys(prev => [...prev, { ...restored, deleted_at: null }]);
+      }
+      router.refresh();
+    } catch (err) {
+      alert('Nie udało się przywrócić ankiety.');
+    }
+  };
+
+  const handleDeletePermanently = async (id: string, title: string) => {
+    if (window.confirm(`Czy na pewno chcesz TRWALE usunąć ankietę "${title}"? Tej operacji nie można cofnąć, wszystkie odpowiedzi zostaną usunięte.`)) {
+      try {
+        await deleteSurveyPermanently(id);
+        setTrashSurveys(prev => prev.filter(s => s.id !== id));
+        router.refresh();
+      } catch (err) {
+        alert('Nie udało się usunąć ankiety.');
+      }
+    }
+  };
+
+  const getRemainingDays = (deletedAtStr?: string | null) => {
+    if (!deletedAtStr) return 30;
+    const deletedAt = new Date(deletedAtStr);
+    const now = new Date();
+    const diffTime = deletedAt.getTime() + 30 * 24 * 60 * 60 * 1000 - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   const [is2faEnabled, setIs2faEnabled] = useState(false);
   const [loading2fa, setLoading2fa] = useState(true);
   
@@ -202,17 +266,74 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
     }
   };
 
-  const filteredSurveys = useMemo(() => {
-    if (!searchQuery.trim()) return surveys;
+  const sortedAndFilteredSurveys = useMemo(() => {
+    let list = surveys;
+    if (searchQuery.trim()) {
+      list = surveys
+        .map(s => ({ survey: s, score: searchScore(s, searchQuery) }))
+        .filter(r => r.score > 0)
+        .sort((a, b) => {
+          if (sortBy === 'default') {
+            const starA = a.survey.is_starred ? 1 : 0;
+            const starB = b.survey.is_starred ? 1 : 0;
+            if (starB !== starA) return starB - starA;
+          }
+          return b.score - a.score;
+        })
+        .map(r => r.survey);
+    }
 
-    const results = surveys
-      .map(s => ({ survey: s, score: searchScore(s, searchQuery) }))
-      .filter(r => r.score > 0);
-    
-    results.sort((a, b) => b.score - a.score);
+    if (!searchQuery.trim()) {
+      list = [...list].sort((a, b) => {
+        switch (sortBy) {
+          case 'default': {
+            const starA = a.is_starred ? 1 : 0;
+            const starB = b.is_starred ? 1 : 0;
+            if (starB !== starA) return starB - starA;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          }
+          case 'az':
+            return a.title.localeCompare(b.title, 'pl');
+          case 'za':
+            return b.title.localeCompare(a.title, 'pl');
+          case 'newest':
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          case 'oldest':
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          default:
+            return 0;
+        }
+      });
+    } else if (sortBy !== 'default') {
+      list = [...list].sort((a, b) => {
+        switch (sortBy) {
+          case 'az':
+            return a.title.localeCompare(b.title, 'pl');
+          case 'za':
+            return b.title.localeCompare(a.title, 'pl');
+          case 'newest':
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          case 'oldest':
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          default:
+            return 0;
+        }
+      });
+    }
+    return list;
+  }, [surveys, searchQuery, sortBy]);
 
-    return results.map(r => r.survey);
-  }, [surveys, searchQuery]);
+  const sortedAndFilteredTrashSurveys = useMemo(() => {
+    let list = trashSurveys;
+    if (searchQuery.trim()) {
+      list = trashSurveys
+        .map(s => ({ survey: s, score: searchScore(s, searchQuery) }))
+        .filter(r => r.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(r => r.survey);
+    }
+    return list;
+  }, [trashSurveys, searchQuery]);
 
   return (
     <div className="container animate-fade-in">
@@ -233,6 +354,22 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
           }}
         >
           Moje Ankiety
+        </button>
+        <button 
+          onClick={() => setActiveTab('trash')} 
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            cursor: 'pointer', 
+            fontSize: '1rem',
+            fontWeight: activeTab === 'trash' ? 600 : 400, 
+            color: activeTab === 'trash' ? 'var(--text-color)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'trash' ? '2px solid var(--text-color)' : 'none',
+            paddingBottom: '0.5rem',
+            marginBottom: '-0.6rem'
+          }}
+        >
+          Kosz
         </button>
         <button 
           onClick={() => setActiveTab('security')} 
@@ -326,22 +463,72 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
             )}
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              Znaleziono: <strong>{sortedAndFilteredSurveys.length}</strong> {sortedAndFilteredSurveys.length === 1 ? 'ankietę' : 'ankiet'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ArrowUpDown size={16} style={{ color: 'var(--text-muted)' }} />
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Sortowanie:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  fontSize: '0.9rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-color)',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  outline: 'none',
+                }}
+              >
+                <option value="default">Domyślne (Wyróżnione najpierw)</option>
+                <option value="az">Alfabetycznie A-Z</option>
+                <option value="za">Alfabetycznie Z-A</option>
+                <option value="newest">Najnowsze</option>
+                <option value="oldest">Najstarsze</option>
+              </select>
+            </div>
+          </div>
+
       {surveys.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <p className="p-muted" style={{ marginBottom: '1rem' }}>Nie masz jeszcze żadnych ankiet.</p>
           <p>Stwórz swoją pierwszą ankietę powyżej!</p>
         </div>
-      ) : filteredSurveys.length === 0 ? (
+      ) : sortedAndFilteredSurveys.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
           <p className="p-muted">Brak wyników dla &quot;{searchQuery}&quot;</p>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Spróbuj innych słów kluczowych.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {filteredSurveys.map((survey) => (
+          {sortedAndFilteredSurveys.map((survey) => (
             <div key={survey.id} className="card animate-slide-down" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 className="h2" style={{ margin: 0, fontSize: '1.2rem' }}>{survey.title}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <button
+                    onClick={() => handleToggleStar(survey.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: survey.is_starred ? '#fbbf24' : 'var(--text-muted)',
+                      padding: '0.25rem',
+                      marginLeft: '-0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'color 0.15s ease, transform 0.1s ease',
+                    }}
+                    title={survey.is_starred ? "Usuń wyróżnienie" : "Wyróżnij gwiazdką"}
+                  >
+                    <Star size={20} fill={survey.is_starred ? '#fbbf24' : 'transparent'} />
+                  </button>
+                  <h3 className="h2" style={{ margin: 0, fontSize: '1.2rem' }}>{survey.title}</h3>
+                </div>
                 {survey.description && (
                   <p style={{
                     margin: '0.35rem 0 0 0',
@@ -367,6 +554,9 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
                 <Link href={`/editor/${survey.id}?tab=results`} className="btn btn-secondary" style={{ display: 'flex', gap: '0.35rem' }}>
                   <BarChart size={16} /> Wyniki
                 </Link>
+                <Link href={`/share/${survey.id}`} className="btn btn-secondary" style={{ display: 'flex', gap: '0.35rem' }}>
+                  <Share2 size={16} /> Udostępnij
+                </Link>
                 <Link href={`/s/${survey.id}?preview=true`} className="btn btn-secondary" target="_blank" style={{ display: 'flex', gap: '0.35rem' }}>
                   <Eye size={16} /> Podgląd
                 </Link>
@@ -379,6 +569,116 @@ let data: { success?: boolean; id?: string; error?: string } | null = null;
           ))}
         </div>
       )}
+        </>
+      ) : activeTab === 'trash' ? (
+        <>
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <h1 className="h1" style={{ margin: 0 }}>Kosz</h1>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              Ankiety w koszu zostaną automatycznie bezpowrotnie usunięte po 30 dniach.
+            </span>
+          </header>
+
+          <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
+            <Search
+              size={20}
+              style={{
+                position: 'absolute',
+                left: '1rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)',
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Wyszukaj w koszu..."
+              className="input"
+              style={{
+                padding: '1rem 1rem 1rem 2.75rem',
+                fontSize: '1.1rem',
+                borderRadius: 'var(--radius-lg)',
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '0.25rem',
+                  display: 'flex',
+                }}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {trashSurveys.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+              <p className="p-muted" style={{ marginBottom: '1rem' }}>Twój kosz jest pusty.</p>
+            </div>
+          ) : sortedAndFilteredTrashSurveys.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+              <p className="p-muted">Brak wyników dla &quot;{searchQuery}&quot;</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {sortedAndFilteredTrashSurveys.map((survey) => {
+                const remainingDays = getRemainingDays(survey.deleted_at);
+                return (
+                  <div key={survey.id} className="card animate-slide-down" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid #d97706' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 className="h2" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-muted)' }}>{survey.title}</h3>
+                      {survey.description && (
+                        <p style={{
+                          margin: '0.35rem 0 0 0',
+                          fontSize: '0.85rem',
+                          color: 'var(--text-muted)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: '400px',
+                        }}>
+                          {survey.description}
+                        </p>
+                      )}
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', color: '#b45309', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <span>Pozostało dni: {remainingDays} do usunięcia</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      <button
+                        onClick={() => handleRestore(survey.id)}
+                        className="btn btn-secondary"
+                        style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+                      >
+                        <RotateCcw size={16} /> Przywróć
+                      </button>
+                      <button
+                        onClick={() => handleDeletePermanently(survey.id, survey.title)}
+                        className="btn btn-danger"
+                        style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', backgroundColor: '#dc2626' }}
+                      >
+                        <Trash2 size={16} /> Usuń trwale
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

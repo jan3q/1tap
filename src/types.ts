@@ -48,6 +48,8 @@ export interface Survey {
   redirect_url: string | null;
   webhook_url: string | null;
   created_at: string;
+  deleted_at?: string | null;
+  is_starred?: number;
 }
 
 export interface SurveyResponse {

@@ -3,11 +3,12 @@
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Survey, SurveySchema, Question, QuestionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, EyeOff, Check, Shield, Copy } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, Plus, Save, Settings, GripVertical, CheckCircle2, Type, AlignLeft, CircleDot, CheckSquare, SlidersHorizontal, Hash, Share2, Eye, EyeOff, Check, Shield, Copy, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RichTextField } from './RichTextField';
 import { getScaleValues } from '@/lib/utils';
+import { resetSurveyStats } from '@/app/actions';
 
 const MANUAL_COLORS: { name: string; hex: string }[] = [
   { name: 'Niebieski', hex: '#3b82f6' },
@@ -113,6 +114,17 @@ export default function EditorClient({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleResetStats = async () => {
+    if (window.confirm('Czy na pewno chcesz zresetować wszystkie statystyki dla tej ankiety? Ta operacja bezpowrotnie usunie wszystkie zebrane odpowiedzi oraz zresetuje liczniki wyświetleń i wypełnień.')) {
+      try {
+        await resetSurveyStats(initialSurvey.id);
+        router.refresh();
+      } catch (err) {
+        alert('Wystąpił błąd podczas resetowania statystyk.');
+      }
+    }
+  };
 
   const CONNECTION_COLORS = useMemo(() => [
     '#3b82f6', // niebieski
@@ -1281,9 +1293,34 @@ export default function EditorClient({
         </div>
       ) : (
         <div className="card animate-slide-down" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             <h3 className="h2" style={{ fontSize: '1.4rem', margin: 0 }}>Statystyki i Wyniki</h3>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Łącznie: <strong>{initialResponses.length}</strong> wypełnień</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Łącznie: <strong>{initialResponses.length}</strong> wypełnień</span>
+              <button
+                type="button"
+                onClick={handleResetStats}
+                className="btn btn-danger"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.8rem',
+                  fontSize: '0.85rem',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'opacity 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+              >
+                <RotateCcw size={14} /> Resetuj statystyki
+              </button>
+            </div>
           </div>
 
           {initialResponses.length === 0 ? (

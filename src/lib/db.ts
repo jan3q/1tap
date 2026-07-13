@@ -32,7 +32,9 @@ const initDb = () => {
       redirect_url TEXT,
       webhook_url TEXT,
       description TEXT DEFAULT '',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      deleted_at DATETIME DEFAULT NULL,
+      is_starred INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS survey_responses (
@@ -53,6 +55,12 @@ const initDb = () => {
   const cols = db.prepare("PRAGMA table_info(surveys)").all() as { name: string }[];
   if (!cols.some(c => c.name === 'description')) {
     db.exec("ALTER TABLE surveys ADD COLUMN description TEXT DEFAULT ''");
+  }
+  if (!cols.some(c => c.name === 'deleted_at')) {
+    db.exec("ALTER TABLE surveys ADD COLUMN deleted_at DATETIME DEFAULT NULL");
+  }
+  if (!cols.some(c => c.name === 'is_starred')) {
+    db.exec("ALTER TABLE surveys ADD COLUMN is_starred INTEGER DEFAULT 0");
   }
 };
 

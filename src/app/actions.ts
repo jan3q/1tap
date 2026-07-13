@@ -40,11 +40,28 @@ export async function createSurvey(title: string, description?: string) {
 
 export async function getSurveys(): Promise<Survey[]> {
   await authCheck();
-  return db.prepare('SELECT * FROM surveys ORDER BY created_at DESC').all() as Survey[];
+  db.prepare("DELETE FROM surveys WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')").run();
+  return db.prepare('SELECT * FROM surveys WHERE deleted_at IS NULL ORDER BY created_at DESC').all() as Survey[];
 }
 
 export async function getSurvey(id: string): Promise<Survey | undefined> {
-  return db.prepare('SELECT * FROM surveys WHERE id = ?').get(id) as Survey | undefined;
+  const survey = db.prepare('SELECT * FROM surveys WHERE id = ?').get(id) as Survey | undefined;
+  if (survey && survey.deleted_at) {
+    return undefined;
+  }
+  return survey;
+}
+
+export async function getTrashSurveys(): Promise<Survey[]> {
+  await authCheck();
+  db.prepare("DELETE FROM surveys WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')").run();
+  return db.prepare('SELECT * FROM surveys WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC').all() as Survey[];
+}
+
+export async function toggleStarSurvey(id: string) {
+  await authCheck();
+  db.prepare('UPDATE surveys SET is_starred = CASE WHEN is_starred = 1 THEN 0 ELSE 1 END WHERE id = ?').run(id);
+  revalidatePath('/');
 }
 
 export async function updateSurveySchema(
@@ -287,7 +304,29 @@ export async function getSurveyResponses(surveyId: string): Promise<SurveyRespon
 
 export async function deleteSurvey(id: string) {
   await authCheck();
+  db.prepare("UPDATE surveys SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+  revalidatePath('/');
+}
+
+export async function restoreSurvey(id: string) {
+  await authCheck();
+  db.prepare("UPDATE surveys SET deleted_at = NULL WHERE id = ?").run(id);
+  revalidatePath('/');
+}
+
+export async function deleteSurveyPermanently(id: string) {
+  await authCheck();
   db.prepare('DELETE FROM surveys WHERE id = ?').run(id);
+  revalidatePath('/');
+}
+
+export async function resetSurveyStats(id: string) {
+  await authCheck();
+  db.transaction(() => {
+    db.prepare('DELETE FROM survey_responses WHERE survey_id = ?').run(id);
+    db.prepare('UPDATE surveys SET views = 0, submissions = 0 WHERE id = ?').run(id);
+  })();
+  revalidatePath(`/editor/${id}`);
   revalidatePath('/');
 }
 
